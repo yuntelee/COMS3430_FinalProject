@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Nature‑Inspired Algorithmic Composer (Web Audio + Markov)</title>
+  <style>
+    :root{
+      --bg:#0f1216;
+      --panel:#171c22;
+      --panel2:#12161b;
+      --text:#e9eef5;
+      --muted:#a9b4c2;
+      --accent:#47d16c;
+      --accent2:#3aa0ff;
+      --danger:#ff4d5a;
+      --border:rgba(255,255,255,.08);
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 70% -10%, rgba(71,209,108,.18), transparent 55%),
+                  radial-gradient(1000px 800px at 10% 0%, rgba(58,160,255,.15), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+    }
+
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      padding:18px 16px 28px;
+    }
+
+    header{
+      display:flex;
+      gap:14px;
+      align-items:flex-start;
+      justify-content:space-between;
+      padding:14px 14px;
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border-radius:14px;
+    }
+
+    header h1{
+      margin:0;
+      font-size:1.25rem;
+      letter-spacing:.2px;
+    }
+    header p{
+      margin:.35rem 0 0;
+      color:var(--muted);
+      line-height:1.35;
+      font-size:.95rem;
+      max-width:70ch;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.25);
+      color:var(--muted);
+      font-size:.9rem;
+      white-space:nowrap;
+    }
+
+    .grid{
+      margin-top:14px;
+      display:grid;
+      gap:14px;
+      grid-template-columns: 1.1fr .9fr;
+    }
+
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+      header{ flex-direction:column; }
+    }
+
+    .card{
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border-radius:14px;
+      padding:14px;
+    }
+
+    .card h2{
+      margin:0 0 10px 0;
+      font-size:1.05rem;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+
+    @media (max-width: 680px){
+      .row{ grid-template-columns: 1fr; }
+    }
+
+    label{
+      display:block;
+      font-size:.9rem;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+
+    select, input[type="range"], input[type="number"], button{
+      width:100%;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.3);
+      color:var(--text);
+      padding:10px 10px;
+      outline:none;
+    }
+
+    input[type="range"]{
+      padding:10px 0;
+      height:42px;
+    }
+
+    button{
+      background: linear-gradient(180deg, rgba(71,209,108,.22), rgba(71,209,108,.10));
+      cursor:pointer;
+      font-weight:650;
+      letter-spacing:.2px;
+    }
+    button:hover{ border-color: rgba(71,209,108,.5); }
+    button:active{ transform: translateY(1px); }
+
+    .btnRow{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .btnSecondary{
+      background: rgba(0,0,0,.25);
+      font-weight:600;
+    }
+    .btnDanger{
+      background: linear-gradient(180deg, rgba(255,77,90,.22), rgba(255,77,90,.10));
+    }
+
+    .small{
+      font-size:.88rem;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    .inline{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .value{
+      color:var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .checks{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:6px;
+    }
+
+    .check{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.22);
+      border-radius:12px;
+      padding:10px;
+      user-select:none;
+    }
+    .check input{ width:auto; }
+    .check strong{ font-size:.95rem; }
+    .check span{ display:block; font-size:.85rem; color:var(--muted); margin-top:2px; }
+
+    .viz{
+      margin-top:12px;
+      background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.22));
+      border:1px solid var(--border);
+      border-radius:14px;
+      overflow:hidden;
+    }
+    canvas{ display:block; width:100%; height:220px; }
+
+    .status{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.25);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+      color:var(--muted);
+      font-size:.9rem;
+      line-height:1.35;
+    }
+    .status b{ color:var(--text); }
+
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size:.85rem;
+    }
+
+    .hr{
+      height:1px;
+      background: var(--border);
+      margin:12px 0;
+    }
+
+    .hint{
+      color:var(--muted);
+      font-size:.88rem;
+      margin-top:8px;
+    }
+
+    .kbd{
+      font-family: ui-monospace, monospace;
+      padding:2px 6px;
+      border:1px solid var(--border);
+      border-bottom-color: rgba(255,255,255,.18);
+      background: rgba(0,0,0,.25);
+      border-radius:8px;
+      color:var(--text);
+      font-size:.82rem;
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Nature‑Inspired Algorithmic Composer</h1>
+      <p>
+        This page <b>pre‑analyzes</b> a selected nature recording (rain / ocean / forest / birds) to extract dominant
+        frequencies, event timings, and texture features. Those sequences train <b>three Markov chains</b>
+        (pitch, timing, texture). You can then morph from ambience → melody using the entropy slider.
+      </p>
+      <p class="small">
+        To run: save this file as <span class="kbd">nature-composer.html</span> and put audio files in
+        <span class="kbd">./sounds/</span>:
+        <span class="kbd">rain.mp3</span>, <span class="kbd">ocean.mp3</span>, <span class="kbd">forest.mp3</span>, <span class="kbd">birds.mp3</span>.
+        Serve via a local server (recommended): <span class="kbd">python -m http.server</span>.
+      </p>
+    </div>
+    <div class="pill">
+      <span>Web Audio API</span>
+      <span style="opacity:.55">•</span>
+      <span class="mono" id="audioState">audio: idle</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Controls</h2>
+
+      <div class="row">
+        <div>
+          <label for="natureSelect">Nature sound (used for analysis + ambience)</label>
+          <select id="natureSelect">
+            <option value="rain">Rain</option>
+            <option value="ocean">Ocean Waves</option>
+            <option value="forest">Forest</option>
+            <option value="birds">Birds Chirping</option>
+          </select>
+          <div class="hint">Selecting a new sound will re‑train chains (cached after first analysis).</div>
+        </div>
+
+        <div>
+          <label for="analysisSeconds">Analysis length (seconds)</label>
+          <input id="analysisSeconds" type="number" min="5" max="60" step="1" value="20" />
+          <div class="hint">Shorter is faster. The Markov chains are trained from this slice.</div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div>
+        <label>Optional instrument chains (each trains its own Markov chains)</label>
+        <div class="checks">
+          <label class="check">
+            <input id="instDrums" type="checkbox" checked />
+            <div>
+              <strong>Drums</strong>
+              <span>Noise + simple kick/snare/hat selection from pitch chain</span>
+            </div>
+          </label>
+
+          <label class="check">
+            <input id="instBass" type="checkbox" checked />
+            <div>
+              <strong>Bass</strong>
+              <span>Square/sine bass; pitch from chain + scale snapping</span>
+            </div>
+          </label>
+
+          <label class="check">
+            <input id="instPad" type="checkbox" checked />
+            <div>
+              <strong>Pad</strong>
+              <span>Soft triangle/saw pad; slower envelopes</span>
+            </div>
+          </label>
+
+          <label class="check">
+            <input id="instLead" type="checkbox" />
+            <div>
+              <strong>Lead</strong>
+              <span>Brighter saw lead (more obvious melody)</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div>
+        <div class="inline">
+          <label for="entropySlider" style="margin:0;">Entropy / Melody (target)</label>
+          <div class="value mono" id="entropyValue">0.20</div>
+        </div>
+        <input id="entropySlider" type="range" min="0" max="1" step="0.01" value="0.20" />
+        <div class="small">
+          Low entropy: follows learned Markov transitions (more stable, more "nature‑like").
+          High entropy: mixes in uniform randomness (more surprise, more overt melody).
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <div>
+          <label class="inline" style="margin-bottom:6px;">
+            <span>Auto‑evolve from 0 → target</span>
+            <span class="value mono" id="evolveState">on</span>
+          </label>
+          <select id="autoEvolve">
+            <option value="on" selected>On (gradual evolution)</option>
+            <option value="off">Off (manual only)</option>
+          </select>
+        </div>
+        <div>
+          <label class="inline" style="margin-bottom:6px;">
+            <span>Evolution time (seconds)</span>
+            <span class="value mono" id="evolveSecondsValue">45</span>
+          </label>
+          <input id="evolveSeconds" type="range" min="5" max="180" step="1" value="45" />
+        </div>
+      </div>
+
+      <div class="btnRow">
+        <button id="startBtn">Start / Restart</button>
+        <button id="stopBtn" class="btnDanger">Stop</button>
+      </div>
+
+      <div class="status" id="statusBox">
+        <div>
+          <div><b>Status</b>: <span id="statusText">Ready. Click Start.</span></div>
+          <div class="mono" id="analysisStats">analysis: (not yet)</div>
+        </div>
+        <div class="mono" id="mixStats">mix: nature=— synth=—</div>
+      </div>
+
+      <p class="small" style="margin:10px 2px 0;">
+        Optional online analysis hook: an <span class="kbd">AnalyserNode</span> is attached to the master bus
+        so you can inspect spectra in real time if you want to adapt chains while playing.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Entropy Visualization (real‑time)</h2>
+      <div class="small">
+        Shows the live entropy value used by the generators (after auto‑evolution smoothing).
+      </div>
+      <div class="viz">
+        <canvas id="viz"></canvas>
+      </div>
+      <div class="status" style="margin-top:12px;">
+        <div>
+          <div><b>Tip</b>: if you need true "offline preprocessing" for production, you can run analysis once, export JSON,
+            and load it instead of computing in the browser.</div>
+          <div class="small">This demo computes analysis in-browser, but it happens <i>before</i> generation, so it's still "offline" relative to playback.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* =========================================================================
+     Utility helpers
+     ========================================================================= */
+
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  function quantize(x, step){
+    return Math.round(x / step) * step;
+  }
+
+  // Convert MIDI note to frequency (Hz).
+  function midiToFreq(midi){
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+
+  // Convert frequency (Hz) to MIDI note number (float).
+  function freqToMidi(freq){
+    return 69 + 12 * Math.log2(freq / 440);
+  }
+
+  // Wrap to [0, 12)
+  function pitchClassFromMidi(midi){
+    const pc = ((Math.round(midi) % 12) + 12) % 12;
+    return pc;
+  }
+
+  // Snap MIDI note to pentatonic scale (adds melodic structure)
+  function snapToScale(midi){
+    const pc = pitchClassFromMidi(midi);
+    const penta = [0, 2, 4, 7, 9]; // pentatonic: C, D, E, G, A
+    let best = penta[0];
+    let bestDist = Math.abs(pc - best);
+
+    for (const p of penta){
+      const dist = Math.abs(pc - p);
+      if (dist < bestDist){
+        bestDist = dist;
+        best = p;
+      }
+    }
+
+    const octave = Math.floor(midi / 12);
+    return octave * 12 + best;
+  }
+
+  // Choose an item from [items] according to [weights] (same length).
+  function weightedChoice(items, weights){
+    let sum = 0;
+    for (const w of weights) sum += w;
+    if (sum <= 0) return items[Math.floor(Math.random() * items.length)];
+
+    let r = Math.random() * sum;
+    for (let i = 0; i < items.length; i++){
+      r -= weights[i];
+      if (r <= 0) return items[i];
+    }
+    return items[items.length - 1];
+  }
+
+  // A gentle easing so evolution feels smoother.
+  function easeInOut(t){
+    t = clamp(t, 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  /* =========================================================================
+     Markov chain (order-1) with entropy mixing
+     - Trains from a discrete sequence: s0, s1, s2...
+     - At sample time: mixes learned distribution with uniform distribution.
+     ========================================================================= */
+
+  class MarkovChain {
+    /**
+     * @param {Map<any, Map<any, number>>} transitions counts: state -> (nextState -> count)
+     * @param {Array<any>} states list of all states
+     */
+    constructor(transitions, states){
+      this.transitions = transitions;
+      this.states = states;
+      this._uniformProb = 1 / Math.max(1, states.length);
+    }
+
+    static fromSequence(seq, {smoothing = 1} = {}){
+      const states = Array.from(new Set(seq));
+      const transitions = new Map();
+
+      for (let i = 0; i < seq.length - 1; i++){
+        const a = seq[i];
+        const b = seq[i + 1];
+        if (!transitions.has(a)) transitions.set(a, new Map());
+        const m = transitions.get(a);
+        m.set(b, (m.get(b) || 0) + 1);
+      }
+
+      // Laplace smoothing so every next state is possible (avoids dead ends).
+      for (const s of states){
+        if (!transitions.has(s)) transitions.set(s, new Map());
+        const m = transitions.get(s);
+        for (const n of states){
+          m.set(n, (m.get(n) || 0) + smoothing);
+        }
+      }
+
+      return new MarkovChain(transitions, states);
+    }
+
+    randomState(){
+      return this.states[Math.floor(Math.random() * this.states.length)];
+    }
+
+    /**
+     * Sample next state.
+     * @param {any} currentState
+     * @param {number} entropy 0..1
+     *  entropy = 0: strongly follows learned transitions (argmax-ish)
+     *  entropy = 1: uniform random
+     */
+    next(currentState, entropy){
+      const states = this.states;
+      if (!states.length) return null;
+
+      const m = this.transitions.get(currentState);
+      if (!m){
+        // Unknown state -> fallback to uniform.
+        return this.randomState();
+      }
+
+      // Build probability distribution from counts.
+      const items = [];
+      const probs = [];
+
+      let total = 0;
+      for (const s of states){
+        const c = m.get(s) || 0;
+        total += c;
+      }
+      if (total <= 0) return this.randomState();
+
+      for (const s of states){
+        const pLearned = (m.get(s) || 0) / total;
+        const pUniform = this._uniformProb;
+
+        // Mix learned + uniform. Higher entropy -> flatter.
+        const p = lerp(pLearned, pUniform, entropy);
+        items.push(s);
+        probs.push(p);
+      }
+
+      // Make ultra-stable at very low entropy by choosing the maximum probability.
+      if (entropy < 0.04){
+        let bestI = 0;
+        for (let i = 1; i < probs.length; i++){
+          if (probs[i] > probs[bestI]) bestI = i;
+        }
+        return items[bestI];
+      }
+
+      return weightedChoice(items, probs);
+    }
+  }
+
+  /* =========================================================================
+     Minimal FFT (radix-2 Cooley-Tukey), to enable "offline" frequency analysis
+     ========================================================================= */
+
+  function createFftTables(N){
+    const cos = new Float32Array(N / 2);
+    const sin = new Float32Array(N / 2);
+    for (let i = 0; i < N / 2; i++){
+      const a = -2 * Math.PI * i / N;
+      cos[i] = Math.cos(a);
+      sin[i] = Math.sin(a);
+    }
+
+    // bit-reversal table
+    const rev = new Uint32Array(N);
+    const bits = Math.log2(N) | 0;
+
+    for (let i = 0; i < N; i++){
+      let x = i;
+      let y = 0;
+      for (let b = 0; b < bits; b++){
+        y = (y << 1) | (x & 1);
+        x >>= 1;
+      }
+      rev[i] = y;
+    }
+    return {cos, sin, rev};
+  }
+
+  function fftRadix2InPlace(re, im, tables){
+    const N = re.length;
+    const {cos, sin, rev} = tables;
+
+    // bit reversal permutation
+    for (let i = 0; i < N; i++){
+      const j = rev[i];
+      if (j > i){
+        let tmp = re[i]; re[i] = re[j]; re[j] = tmp;
+        tmp = im[i]; im[i] = im[j]; im[j] = tmp;
+      }
+    }
+
+    // iterative FFT
+    for (let size = 2; size <= N; size <<= 1){
+      const half = size >>> 1;
+      const tableStep = N / size;
+
+      for (let i = 0; i < N; i += size){
+        for (let j = 0; j < half; j++){
+          const k = (j * tableStep) | 0;
+
+          const tpre = re[i + j + half] * cos[k] - im[i + j + half] * sin[k];
+          const tpim = re[i + j + half] * sin[k] + im[i + j + half] * cos[k];
+
+          re[i + j + half] = re[i + j] - tpre;
+          im[i + j + half] = im[i + j] - tpim;
+
+          re[i + j] += tpre;
+          im[i + j] += tpim;
+        }
+      }
+    }
+  }
+
+  function makeHannWindow(N){
+    const w = new Float32Array(N);
+    for (let i = 0; i < N; i++){
+      w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (N - 1)));
+    }
+    return w;
+  }
+
+  /* =========================================================================
+     Offline analysis of a decoded AudioBuffer:
+     - Computes per-frame RMS energy
+     - Computes dominant frequency per frame via FFT peak
+     - Detects "events" from energy rises (onset-ish)
+     - Builds 3 discrete sequences: pitch (pitch class), timing (seconds), texture (0..1)
+     ========================================================================= */
+
+  async function analyzeNatureBuffer(audioBuffer, {
+    maxSeconds = 20,
+    fftSize = 2048,
+    hopSize = 1024,
+    minFreq = 60,
+    maxFreq = 3000,
+    textureLevels = 8,
+    timingQuant = 0.05,
+    yieldEveryFrames = 80,
+    onProgress = null,
+  } = {}){
+    const sr = audioBuffer.sampleRate;
+    const nCh = audioBuffer.numberOfChannels;
+
+    // Mix to mono.
+    const length = Math.min(audioBuffer.length, Math.floor(maxSeconds * sr));
+    const mono = new Float32Array(length);
+
+    const ch0 = audioBuffer.getChannelData(0);
+    if (nCh === 1){
+      mono.set(ch0.subarray(0, length));
+    } else {
+      const ch1 = audioBuffer.getChannelData(1);
+      for (let i = 0; i < length; i++){
+        mono[i] = 0.5 * (ch0[i] + ch1[i]);
+      }
+    }
+
+    // Frame count
+    const frames = Math.max(1, Math.floor((length - fftSize) / hopSize));
+    const tables = createFftTables(fftSize);
+    const win = makeHannWindow(fftSize);
+
+    const energy = new Float32Array(frames);
+    const peakFreq = new Float32Array(frames);
+    const centroid = new Float32Array(frames);
+
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+
+    const minBin = Math.max(1, Math.floor(minFreq * fftSize / sr));
+    const maxBin = Math.min((fftSize / 2) - 1, Math.floor(maxFreq * fftSize / sr));
+
+    let globalMaxEnergy = 1e-9;
+
+    for (let f = 0; f < frames; f++){
+      const start = f * hopSize;
+
+      // windowed frame + RMS
+      let sumSq = 0;
+      for (let i = 0; i < fftSize; i++){
+        const x = (mono[start + i] || 0) * win[i];
+        re[i] = x;
+        im[i] = 0;
+        sumSq += x * x;
+      }
+      const rms = Math.sqrt(sumSq / fftSize);
+      energy[f] = rms;
+      if (rms > globalMaxEnergy) globalMaxEnergy = rms;
+
+      // FFT
+      fftRadix2InPlace(re, im, tables);
+
+      // Find peak + centroid using power spectrum (no sqrt needed)
+      let bestPow = -1;
+      let bestBin = minBin;
+
+      let sumPow = 1e-12;
+      let sumFreqPow = 0;
+
+      for (let b = minBin; b <= maxBin; b++){
+        const rr = re[b], ii = im[b];
+        const p = rr * rr + ii * ii; // power
+        if (p > bestPow){
+          bestPow = p;
+          bestBin = b;
+        }
+        const freq = b * sr / fftSize;
+        sumPow += p;
+        sumFreqPow += freq * p;
+      }
+
+      peakFreq[f] = bestBin * sr / fftSize;
+      centroid[f] = sumFreqPow / sumPow;
+
+      if (onProgress && (f % 10 === 0)){
+        onProgress(f / frames);
+      }
+
+      if (f > 0 && (f % yieldEveryFrames === 0)){
+        // yield to keep UI responsive
+        await new Promise(requestAnimationFrame);
+      }
+    }
+
+    // Onset-ish event detection from energy differences.
+    const diff = new Float32Array(frames);
+    let meanDiff = 0;
+    for (let i = 1; i < frames; i++){
+      const d = Math.max(0, energy[i] - energy[i - 1]);
+      diff[i] = d;
+      meanDiff += d;
+    }
+    meanDiff /= Math.max(1, frames - 1);
+
+    // Threshold: meanDiff * factor. (Works reasonably across many textures.)
+    const thresh = meanDiff * 2.5;
+
+    const eventFrames = [];
+    for (let i = 2; i < frames - 2; i++){
+      const isPeak =
+        diff[i] > thresh &&
+        diff[i] > diff[i - 1] &&
+        diff[i] > diff[i + 1];
+
+      if (isPeak) eventFrames.push(i);
+    }
+
+    // Fallback: if nature sound is too steady, synthesize "events" regularly.
+    if (eventFrames.length < 12){
+      const step = Math.max(1, Math.floor((sr * 0.35) / hopSize)); // ~350ms
+      for (let i = step; i < frames; i += step) eventFrames.push(i);
+    }
+
+    // Build sequences: pitch classes, timings, textures.
+    const pitchSeq = [];
+    const timingSeq = [];
+    const textureSeq = [];
+
+    // Normalize texture from RMS energy + a bit of centroid "brightness".
+    function toTextureLevel(rms, cent){
+      const eNorm = clamp(rms / globalMaxEnergy, 0, 1);
+      const bright = clamp((cent - minFreq) / (maxFreq - minFreq), 0, 1);
+      const mix = 0.75 * eNorm + 0.25 * bright;
+      const q = Math.round(mix * (textureLevels - 1)) / (textureLevels - 1);
+      return q;
+    }
+
+    // Convert dominant frequency -> pitch class (0..11)
+    function toPitchClass(freq){
+      const midi = freqToMidi(Math.max(1, freq));
+      return pitchClassFromMidi(midi);
+    }
+
+    let prevTime = null;
+    for (const fr of eventFrames){
+      const t = (fr * hopSize) / sr;
+
+      if (prevTime !== null){
+        const dt = clamp(t - prevTime, 0.05, 2.0);
+        timingSeq.push(quantize(dt, timingQuant));
+      }
+      prevTime = t;
+
+      pitchSeq.push(toPitchClass(peakFreq[fr]));
+      textureSeq.push(toTextureLevel(energy[fr], centroid[fr]));
+    }
+
+    // Ensure sequences have enough length.
+    if (timingSeq.length < 2){
+      timingSeq.push(0.35, 0.45, 0.25, 0.55);
+    }
+    if (pitchSeq.length < 4){
+      pitchSeq.push(0, 3, 5, 7, 10, 0, 7);
+    }
+    if (textureSeq.length < 4){
+      textureSeq.push(0.35, 0.55, 0.45, 0.65, 0.5);
+    }
+
+    return {
+      meta: {sampleRate: sr, maxSeconds, fftSize, hopSize, frames, events: eventFrames.length},
+      pitchSeq,
+      timingSeq,
+      textureSeq,
+    };
+  }
+
+  /* =========================================================================
+     Drum Synth: generates kick, snare, hat
+     ========================================================================= */
+
+  class DrumSynth {
+    constructor(ctx, out){
+      this.ctx = ctx;
+      this.out = out;
+
+      // Pre-create noise buffer (reusable)
+      const noiseBufLen = ctx.sampleRate * 1;
+      this.noiseBuf = ctx.createBuffer(1, noiseBufLen, ctx.sampleRate);
+      const data = this.noiseBuf.getChannelData(0);
+      for (let i = 0; i < noiseBufLen; i++){
+        data[i] = Math.random() * 2 - 1;
+      }
+    }
+
+    trigger(type, time, vel, brightness){
+      const ctx = this.ctx;
+      vel = clamp(vel, 0, 1);
+
+      if (type === 0){
+        // Kick: sine sweep downward
+        const osc = ctx.createOscillator();
+        osc.type = "sine";
+
+        const freq = lerp(85, 45, brightness);
+        const bendFreq = lerp(170, 85, brightness);
+
+        osc.frequency.setValueAtTime(bendFreq, time);
+        osc.frequency.exponentialRampToValueAtTime(freq, time + 0.08);
+        osc.frequency.exponentialRampToValueAtTime(35, time + 0.15);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.22);
+
+        osc.connect(gain).connect(this.out);
+        osc.start(time);
+        osc.stop(time + 0.25);
+        return;
+      }
+
+      // Noise-based snare/hat
+      const src = ctx.createBufferSource();
+      src.buffer = this.noiseBuf;
+
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      const center = type === 1 ? lerp(900, 1800, brightness) : lerp(4500, 9000, brightness);
+      const q = type === 1 ? 0.9 : 3.5;
+      bp.frequency.setValueAtTime(center, time);
+      bp.Q.setValueAtTime(q, time);
+
+      const gain = ctx.createGain();
+      const dur = type === 1 ? 0.18 : 0.06;
+
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.exponentialRampToValueAtTime((type === 1 ? 0.8 : 0.5) * vel + 0.0001, time + 0.002);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+
+      src.connect(bp).connect(gain).connect(this.out);
+      src.start(time);
+      src.stop(time + dur + 0.02);
+    }
+  }
+
+  class MonoSynth {
+    constructor(ctx, out, {
+      oscType = "sawtooth",
+      filterType = "lowpass",
+      baseCutoff = 800,
+      cutoffRange = 4000,
+      attack = 0.01,
+      decay = 0.12,
+      sustain = 0.0,
+      release = 0.18,
+      detuneCents = 0,
+      gain = 0.35
+    } = {}){
+      this.ctx = ctx;
+      this.out = out;
+
+      this.oscType = oscType;
+      this.filterType = filterType;
+      this.baseCutoff = baseCutoff;
+      this.cutoffRange = cutoffRange;
+      this.attack = attack;
+      this.decay = decay;
+      this.sustain = sustain;
+      this.release = release;
+      this.detuneCents = detuneCents;
+      this.gain = gain;
+    }
+
+    trigger(midi, time, vel, brightness, duration = 0.22){
+      const ctx = this.ctx;
+      vel = clamp(vel, 0, 1);
+
+      const osc = ctx.createOscillator();
+      osc.type = this.oscType;
+      osc.frequency.setValueAtTime(midiToFreq(midi), time);
+      osc.detune.setValueAtTime(this.detuneCents, time);
+
+      const filt = ctx.createBiquadFilter();
+      filt.type = this.filterType;
+      const cutoff = this.baseCutoff + this.cutoffRange * clamp(brightness, 0, 1);
+      filt.frequency.setValueAtTime(cutoff, time);
+      filt.Q.setValueAtTime(0.8, time);
+
+      const amp = ctx.createGain();
+      const g = (this.gain * vel);
+
+      // ADSR-ish
+      amp.gain.setValueAtTime(0.0001, time);
+      amp.gain.exponentialRampToValueAtTime(g + 0.0001, time + this.attack);
+      amp.gain.exponentialRampToValueAtTime((g * (this.sustain + 0.0001)) + 0.0001, time + this.attack + this.decay);
+      amp.gain.setTargetAtTime(0.0001, time + duration, this.release);
+
+      osc.connect(filt).connect(amp).connect(this.out);
+      osc.start(time);
+      osc.stop(time + duration + this.release * 6);
+    }
+  }
+
+  class PadSynth {
+    constructor(ctx, out){
+      this.ctx = ctx;
+      this.out = out;
+    }
+
+    trigger(midi, time, vel, brightness, duration = 0.9){
+      const ctx = this.ctx;
+      vel = clamp(vel, 0, 1);
+
+      const o1 = ctx.createOscillator();
+      const o2 = ctx.createOscillator();
+      o1.type = "triangle";
+      o2.type = "sawtooth";
+
+      const f = midiToFreq(midi);
+      o1.frequency.setValueAtTime(f, time);
+      o2.frequency.setValueAtTime(f * 0.5, time); // sub harmonic pad-ish
+      o2.detune.setValueAtTime(7, time);
+
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.setValueAtTime(lerp(600, 4500, brightness), time);
+      lp.Q.setValueAtTime(0.7, time);
+
+      const amp = ctx.createGain();
+      const a = 0.08, r = 0.45;
+      const g = 0.22 * vel;
+
+      amp.gain.setValueAtTime(0.0001, time);
+      amp.gain.exponentialRampToValueAtTime(g + 0.0001, time + a);
+      amp.gain.setTargetAtTime(0.0001, time + duration, r);
+
+      const mix = ctx.createGain();
+      mix.gain.value = 1;
+
+      o1.connect(mix);
+      o2.connect(mix);
+      mix.connect(lp).connect(amp).connect(this.out);
+
+      o1.start(time); o2.start(time);
+      o1.stop(time + duration + r * 6);
+      o2.stop(time + duration + r * 6);
+    }
+  }
+
+  /* =========================================================================
+     InstrumentEngine: one instrument + its own three Markov chains
+     ========================================================================= */
+
+  class InstrumentEngine {
+    /**
+     * @param {object} opts
+     * @param {AudioContext} opts.ctx
+     * @param {string} opts.name
+     * @param {object} opts.instrument concrete synth with trigger(...)
+     * @param {MarkovChain} opts.pitchChain
+     * @param {MarkovChain} opts.timingChain
+     * @param {MarkovChain} opts.textureChain
+     * @param {function(number): number} opts.pitchMap maps pitch-class -> MIDI
+     * @param {number} opts.densityBias multiplies timing (lower=faster)
+     */
+    constructor({
+      ctx,
+      name,
+      instrument,
+      pitchChain,
+      timingChain,
+      textureChain,
+      pitchMap,
+      densityBias = 1
+    }){
+      this.ctx = ctx;
+      this.name = name;
+      this.instrument = instrument;
+
+      this.pitchChain = pitchChain;
+      this.timingChain = timingChain;
+      this.textureChain = textureChain;
+
+      this.pitchMap = pitchMap;
+      this.densityBias = densityBias;
+
+      this.running = false;
+      this.nextTime = 0;
+
+      this._curPitch = pitchChain.randomState();
+      this._curTiming = timingChain.randomState();
+      this._curTexture = textureChain.randomState();
+    }
+
+    reset(startTime){
+      this.running = true;
+      this.nextTime = startTime;
+
+      this._curPitch = this.pitchChain.randomState();
+      this._curTiming = this.timingChain.randomState();
+      this._curTexture = this.textureChain.randomState();
+    }
+
+    stop(){
+      this.running = false;
+    }
+
+    /**
+     * Schedule events up to horizonTime.
+     * @param {number} horizonTime
+     * @param {number} entropyLive 0..1
+     */
+    scheduleUntil(horizonTime, entropyLive){
+      if (!this.running) return;
+
+      const ctx = this.ctx;
+
+      while (this.nextTime < horizonTime){
+        // Choose next states.
+        const nextPitch = this.pitchChain.next(this._curPitch, entropyLive);
+        const nextTiming = this.timingChain.next(this._curTiming, entropyLive);
+        const nextTexture = this.textureChain.next(this._curTexture, entropyLive);
+
+        this._curPitch = nextPitch;
+        this._curTiming = nextTiming;
+        this._curTexture = nextTexture;
+
+        // Interpret texture as vel + brightness.
+        const texture = Number(nextTexture);
+        const vel = lerp(0.18, 1.0, texture);
+        const brightness = clamp(lerp(0.15, 1.0, texture), 0, 1);
+
+        // Timing: increase density as entropy increases so it "becomes music".
+        const densityMul = lerp(1.6, 0.65, entropyLive);
+        const dt = clamp(Number(nextTiming) * this.densityBias * densityMul, 0.05, 2.5);
+
+        // Pitch mapping
+        let midi = this.pitchMap(nextPitch);
+
+        if (Math.random() < entropyLive){
+          // More entropy => more "scale-based melody"
+          midi = snapToScale(midi);
+        }
+
+        // Trigger instrument
+        this._triggerAt(this.nextTime, midi, vel, brightness, entropyLive);
+
+        // schedule next
+        this.nextTime += dt;
+
+        // Avoid runaway scheduling if something went wrong.
+        if (this.nextTime > ctx.currentTime + 10) break;
+      }
+    }
+
+    _triggerAt(time, midi, vel, brightness, entropyLive){
+      // Special-case drums: we interpret "midi" as an index and ignore pitch.
+      if (this.name === "drums"){
+        const pc = Number(midi) | 0;
+        const drumType = pc % 3;
+        this.instrument.trigger(drumType, time, vel, brightness);
+        return;
+      }
+
+      const dur = lerp(0.18, 0.55, clamp(1 - entropyLive, 0, 1));
+      this.instrument.trigger(midi, time, vel, brightness, dur);
+    }
+  }
+
+  /* =========================================================================
+     Scheduler (lookahead) for stable Web Audio timing
+     ========================================================================= */
+
+  class Scheduler {
+    constructor(ctx, {lookAhead = 0.2, intervalMs = 25} = {}){
+      this.ctx = ctx;
+      this.lookAhead = lookAhead;
+      this.intervalMs = intervalMs;
+      this._timer = null;
+      this._tick = null;
+    }
+
+    start(tickFn){
+      this._tick = tickFn;
+      if (this._timer) clearInterval(this._timer);
+      this._timer = setInterval(() => {
+        const now = this.ctx.currentTime;
+        const horizon = now + this.lookAhead;
+        this._tick(horizon);
+      }, this.intervalMs);
+    }
+
+    stop(){
+      if (this._timer) clearInterval(this._timer);
+      this._timer = null;
+      this._tick = null;
+    }
+  }
+
+  /* =========================================================================
+     App: loads nature audio, runs offline analysis, trains chains, plays
+     ========================================================================= */
+
+  class NatureComposerApp {
+    constructor(ui){
+      this.ui = ui;
+
+      this.ctx = null;
+      this.master = null;
+      this.compressor = null;
+
+      this.natureBus = null;
+      this.synthBus = null;
+      this.natureGain = null;
+      this.synthGain = null;
+
+      this.analyser = null;
+
+      this.scheduler = null;
+
+      this.natureSource = null;
+      this.natureBuffers = new Map();
+      this.analysisCache = new Map();
+
+      this.engines = new Map();
+
+      this.startedAt = 0;
+      this.entropyTarget = 0.2;
+      this.entropyLive = 0.0;
+
+      this.running = false;
+    }
+
+    async _ensureAudio(){
+      if (this.ctx) return;
+
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioContext();
+
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.92;
+
+      this.compressor = this.ctx.createDynamicsCompressor();
+      this.compressor.threshold.value = -18;
+      this.compressor.knee.value = 24;
+      this.compressor.ratio.value = 5;
+      this.compressor.attack.value = 0.003;
+      this.compressor.release.value = 0.12;
+
+      this.natureBus = this.ctx.createGain();
+      this.synthBus  = this.ctx.createGain();
+
+      this.natureGain = this.ctx.createGain();
+      this.synthGain  = this.ctx.createGain();
+
+      this.synthTone = this.ctx.createBiquadFilter();
+      this.synthTone.type = "lowpass";
+      this.synthTone.frequency.value = 1200;
+      this.synthTone.Q.value = 0.7;
+
+      this.natureBus.connect(this.natureGain).connect(this.master);
+      this.synthBus.connect(this.synthTone).connect(this.synthGain).connect(this.master);
+
+      this.master.connect(this.compressor).connect(this.ctx.destination);
+
+      this.analyser = this.ctx.createAnalyser();
+      this.analyser.fftSize = 2048;
+      this.master.connect(this.analyser);
+
+      this.scheduler = new Scheduler(this.ctx, {lookAhead: 0.2, intervalMs: 25});
+
+      this._updateAudioStateUI();
+    }
+
+    _updateAudioStateUI(){
+      const state = this.ctx ? this.ctx.state : "idle";
+      this.ui.audioState.textContent = `audio: ${state}`;
+    }
+
+    async loadNatureBuffer(name){
+      if (this.natureBuffers.has(name)) return this.natureBuffers.get(name);
+
+      const url = `sounds/${name}.mp3`;
+      this._status(`Loading audio: ${url}`);
+
+      const resp = await fetch(url);
+      if (!resp.ok){
+        throw new Error(`Failed to load ${url} (HTTP ${resp.status}). Check ./sounds/ and your local server.`);
+      }
+
+      const arr = await resp.arrayBuffer();
+      const buf = await this.ctx.decodeAudioData(arr);
+      this.natureBuffers.set(name, buf);
+      return buf;
+    }
+
+    async getOrAnalyze(name, buffer, maxSeconds){
+      const key = `${name}__${maxSeconds}s`;
+      if (this.analysisCache.has(key)) return this.analysisCache.get(key);
+
+      this._status(`Analyzing "${name}" (offline FFT + onset-ish detection)...`);
+
+      const analysis = await analyzeNatureBuffer(buffer, {
+        maxSeconds,
+        onProgress: (p) => {
+          this.ui.statusText.textContent = `Analyzing "${name}"... ${(p * 100).toFixed(0)}%`;
+        }
+      });
+
+      this.analysisCache.set(key, analysis);
+      return analysis;
+    }
+
+    _buildChainsFromAnalysis(analysis){
+      const pitchChain = MarkovChain.fromSequence(analysis.pitchSeq, {smoothing: 1});
+      const timingChain = MarkovChain.fromSequence(analysis.timingSeq, {smoothing: 1});
+      const textureChain = MarkovChain.fromSequence(analysis.textureSeq, {smoothing: 1});
+      return {pitchChain, timingChain, textureChain};
+    }
+
+    _status(msg){
+      this.ui.statusText.textContent = msg;
+    }
+
+    _updateMix(entropy){
+      const n = Math.pow(1 - entropy, 1.6);
+      const s = Math.pow(entropy, 1.1);
+
+      const t = this.ctx.currentTime;
+
+      this.natureGain.gain.setTargetAtTime(n, t, 0.05);
+      this.synthGain.gain.setTargetAtTime(s, t, 0.05);
+
+      const cutoff = lerp(900, 7000, entropy);
+      this.synthTone.frequency.setTargetAtTime(cutoff, t, 0.08);
+
+      this.ui.mixStats.textContent = `mix: nature=${n.toFixed(2)} synth=${s.toFixed(2)}`;
+    }
+
+    _computeEntropyLive(){
+      const target = this.entropyTarget;
+      const mode = this.ui.autoEvolve.value;
+      const evolveSeconds = Number(this.ui.evolveSeconds.value);
+
+      if (!this.running) return 0;
+
+      if (mode === "off"){
+        this.entropyLive = target;
+        return this.entropyLive;
+      }
+
+      const elapsed = this.ctx.currentTime - this.startedAt;
+      const t = easeInOut(clamp(elapsed / Math.max(0.001, evolveSeconds), 0, 1));
+      this.entropyLive = lerp(0, target, t);
+      return this.entropyLive;
+    }
+
+    _stopNatureSource(){
+      try{
+        if (this.natureSource){
+          this.natureSource.stop();
+          this.natureSource.disconnect();
+        }
+      }catch(_e){ }
+      this.natureSource = null;
+    }
+
+    _startNatureLoop(buffer){
+      this._stopNatureSource();
+
+      const src = this.ctx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+
+      const hp = this.ctx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = 40;
+
+      src.connect(hp).connect(this.natureBus);
+      src.start();
+
+      this.natureSource = src;
+    }
+
+    _syncEngines(startTime){
+      for (const e of this.engines.values()){
+        e.reset(startTime);
+      }
+    }
+
+    _clearEngines(){
+      for (const e of this.engines.values()) e.stop();
+      this.engines.clear();
+    }
+
+    _makeInstrumentEngines(analysis){
+      this._clearEngines();
+
+      const ctx = this.ctx;
+      const start = ctx.currentTime + 0.05;
+
+      const enabled = {
+        drums: this.ui.instDrums.checked,
+        bass:  this.ui.instBass.checked,
+        pad:   this.ui.instPad.checked,
+        lead:  this.ui.instLead.checked,
+      };
+
+      if (enabled.drums){
+        const {pitchChain, timingChain, textureChain} = this._buildChainsFromAnalysis(analysis);
+
+        const drums = new DrumSynth(ctx, this.synthBus);
+
+        const engine = new InstrumentEngine({
+          ctx,
+          name: "drums",
+          instrument: drums,
+          pitchChain,
+          timingChain,
+          textureChain,
+          pitchMap: (pc) => Number(pc) | 0,
+          densityBias: 0.85
+        });
+
+        this.engines.set("drums", engine);
+      }
+
+      if (enabled.bass){
+        const {pitchChain, timingChain, textureChain} = this._buildChainsFromAnalysis(analysis);
+
+        const bass = new MonoSynth(ctx, this.synthBus, {
+          oscType: "square",
+          baseCutoff: 250,
+          cutoffRange: 1200,
+          attack: 0.01,
+          decay: 0.08,
+          sustain: 0.0,
+          release: 0.12,
+          gain: 0.35
+        });
+
+        const engine = new InstrumentEngine({
+          ctx,
+          name: "bass",
+          instrument: bass,
+          pitchChain,
+          timingChain,
+          textureChain,
+          pitchMap: (pc) => 36 + Number(pc),
+          densityBias: 1.15
+        });
+
+        this.engines.set("bass", engine);
+      }
+
+      if (enabled.pad){
+        const {pitchChain, timingChain, textureChain} = this._buildChainsFromAnalysis(analysis);
+
+        const pad = new PadSynth(ctx, this.synthBus);
+
+        const engine = new InstrumentEngine({
+          ctx,
+          name: "pad",
+          instrument: pad,
+          pitchChain,
+          timingChain,
+          textureChain,
+          pitchMap: (pc) => 60 + Number(pc),
+          densityBias: 1.75
+        });
+
+        this.engines.set("pad", engine);
+      }
+
+      if (enabled.lead){
+        const {pitchChain, timingChain, textureChain} = this._buildChainsFromAnalysis(analysis);
+
+        const lead = new MonoSynth(ctx, this.synthBus, {
+          oscType: "sawtooth",
+          baseCutoff: 700,
+          cutoffRange: 5200,
+          attack: 0.005,
+          decay: 0.06,
+          sustain: 0.0,
+          release: 0.10,
+          detuneCents: 6,
+          gain: 0.22
+        });
+
+        const engine = new InstrumentEngine({
+          ctx,
+          name: "lead",
+          instrument: lead,
+          pitchChain,
+          timingChain,
+          textureChain,
+          pitchMap: (pc) => 72 + Number(pc),
+          densityBias: 0.95
+        });
+
+        this.engines.set("lead", engine);
+      }
+
+      this._syncEngines(start);
+    }
+
+    async start(){
+      await this._ensureAudio();
+
+      await this.ctx.resume();
+      this._updateAudioStateUI();
+
+      const name = this.ui.natureSelect.value;
+      const maxSeconds = clamp(Number(this.ui.analysisSeconds.value) || 20, 5, 60);
+
+      const buf = await this.loadNatureBuffer(name);
+      const analysis = await this.getOrAnalyze(name, buf, maxSeconds);
+
+      this.ui.analysisStats.textContent =
+        `analysis: events=${analysis.meta.events} frames=${analysis.meta.frames} ` +
+        `fft=${analysis.meta.fftSize} hop=${analysis.meta.hopSize} secs=${analysis.meta.maxSeconds}`;
+
+      this._startNatureLoop(buf);
+      this._makeInstrumentEngines(analysis);
+
+      this.running = true;
+      this.startedAt = this.ctx.currentTime;
+      this.entropyLive = 0;
+
+      this._status(`Playing "${name}". Evolving...`);
+
+      this.scheduler.stop();
+      this.scheduler.start((horizon) => {
+        const e = this._computeEntropyLive();
+        this._updateMix(e);
+
+        for (const engine of this.engines.values()){
+          engine.scheduleUntil(horizon, e);
+        }
+      });
+    }
+
+    stop(){
+      if (!this.ctx) return;
+
+      this.running = false;
+
+      this.scheduler?.stop();
+      this._stopNatureSource();
+      this._clearEngines();
+
+      const t = this.ctx.currentTime;
+      this.natureGain.gain.setTargetAtTime(0, t, 0.05);
+      this.synthGain.gain.setTargetAtTime(0, t, 0.05);
+
+      this._status("Stopped.");
+      this._updateAudioStateUI();
+      this.ui.mixStats.textContent = "mix: nature=— synth=—";
+    }
+  }
+
+  /* =========================================================================
+     UI wiring + visualization
+     ========================================================================= */
+
+  const ui = {
+    audioState: document.getElementById("audioState"),
+
+    natureSelect: document.getElementById("natureSelect"),
+    analysisSeconds: document.getElementById("analysisSeconds"),
+
+    instDrums: document.getElementById("instDrums"),
+    instBass: document.getElementById("instBass"),
+    instPad: document.getElementById("instPad"),
+    instLead: document.getElementById("instLead"),
+
+    entropySlider: document.getElementById("entropySlider"),
+    entropyValue: document.getElementById("entropyValue"),
+
+    autoEvolve: document.getElementById("autoEvolve"),
+    evolveState: document.getElementById("evolveState"),
+    evolveSeconds: document.getElementById("evolveSeconds"),
+    evolveSecondsValue: document.getElementById("evolveSecondsValue"),
+
+    startBtn: document.getElementById("startBtn"),
+    stopBtn: document.getElementById("stopBtn"),
+
+    statusText: document.getElementById("statusText"),
+    analysisStats: document.getElementById("analysisStats"),
+    mixStats: document.getElementById("mixStats"),
+
+    canvas: document.getElementById("viz"),
+  };
+
+  const app = new NatureComposerApp(ui);
+
+  function updateEntropyUI(){
+    const v = Number(ui.entropySlider.value);
+    ui.entropyValue.textContent = v.toFixed(2);
+    app.entropyTarget = v;
+  }
+  ui.entropySlider.addEventListener("input", updateEntropyUI);
+  updateEntropyUI();
+
+  function updateEvolveUI(){
+    ui.evolveState.textContent = ui.autoEvolve.value === "on" ? "on" : "off";
+  }
+  ui.autoEvolve.addEventListener("change", updateEvolveUI);
+  updateEvolveUI();
+
+  function updateEvolveSecondsUI(){
+    ui.evolveSecondsValue.textContent = String(ui.evolveSeconds.value);
+  }
+  ui.evolveSeconds.addEventListener("input", updateEvolveSecondsUI);
+  updateEvolveSecondsUI();
+
+  function autoRestartIfRunning(){
+    if (!app.running) return;
+    app.start().catch(err => {
+      console.error(err);
+      ui.statusText.textContent = `Error: ${err.message}`;
+    });
+  }
+  ui.natureSelect.addEventListener("change", autoRestartIfRunning);
+  ui.analysisSeconds.addEventListener("change", autoRestartIfRunning);
+  ui.instDrums.addEventListener("change", autoRestartIfRunning);
+  ui.instBass.addEventListener("change", autoRestartIfRunning);
+  ui.instPad.addEventListener("change", autoRestartIfRunning);
+  ui.instLead.addEventListener("change", autoRestartIfRunning);
+
+  ui.startBtn.addEventListener("click", async () => {
+    try{
+      await app.start();
+    }catch(err){
+      console.error(err);
+      ui.statusText.textContent = `Error: ${err.message}`;
+    }
+  });
+
+  ui.stopBtn.addEventListener("click", () => app.stop());
+
+  const canvas = ui.canvas;
+  const g = canvas.getContext("2d");
+
+  function fitCanvas(){
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", fitCanvas);
+  fitCanvas();
+
+  const history = [];
+  const HISTORY_MAX = 320;
+
+  function draw(){
+    const w = canvas.getBoundingClientRect().width;
+    const h = canvas.getBoundingClientRect().height;
+
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = "rgba(0,0,0,.18)";
+    g.fillRect(0, 0, w, h);
+
+    const e = app.entropyLive || 0;
+    history.push(e);
+    while (history.length > HISTORY_MAX) history.shift();
+
+    const barH = h * e;
+    const grd = g.createLinearGradient(0, h, 0, 0);
+    grd.addColorStop(0, "rgba(71,209,108,.15)");
+    grd.addColorStop(1, "rgba(71,209,108,.65)");
+    g.fillStyle = grd;
+    g.fillRect(0, h - barH, w, barH);
+
+    g.strokeStyle = "rgba(255,255,255,.20)";
+    g.lineWidth = 1;
+    g.strokeRect(0.5, 0.5, w - 1, h - 1);
+
+    g.beginPath();
+    for (let i = 0; i < history.length; i++){
+      const x = (i / Math.max(1, history.length - 1)) * w;
+      const y = h - history[i] * h;
+      if (i === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    g.strokeStyle = "rgba(58,160,255,.95)";
+    g.lineWidth = 2;
+    g.stroke();
+
+    g.fillStyle = "rgba(233,238,245,.92)";
+    g.font = "14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+    g.fillText(`entropyLive: ${e.toFixed(2)}`, 12, 22);
+
+    g.strokeStyle = "rgba(255,255,255,.06)";
+    g.lineWidth = 1;
+    for (let i = 1; i < 5; i++){
+      const yy = (i / 5) * h;
+      g.beginPath();
+      g.moveTo(0, yy);
+      g.lineTo(w, yy);
+      g.stroke();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+
+})();
+</script>
+</body>
+</html>
