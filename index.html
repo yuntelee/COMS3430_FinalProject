@@ -1990,19 +1990,27 @@
 
     filter.type = "lowpass";
     filter.frequency.setValueAtTime(
-        lerp(500, 1400, liveFeedColor.brightness),
+        lerp(900, 3200, liveFeedColor.brightness),
         time
     );
     filter.Q.value = 0.55;
 
-    const baseGain = 0.18 * Number($("bass").value);
-    gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.linearRampToValueAtTime(baseGain, time + 0.22);
-    gain.gain.setTargetAtTime(0.0001, time + duration * 0.62, duration * 0.18);
+
+    const baseGain =
+        0.42 *
+        Number($("bass").value) *
+        lerp(0.8, 1.4, state?.amp || 0.5);
+
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.exponentialRampToValueAtTime(baseGain, time + 0.035);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
 
     osc.connect(filter);
     sub.connect(filter);
     filter.connect(gain).connect(generatedBus);
+    const bassDry = audioCtx.createGain();
+    bassDry.gain.value = 1.4;
+    gain.connect(bassDry).connect(dryGain);
 
     const voiceRecord = { filter, gain, baseGain, cutoffMult: 0.28, layerGain: Number($("bass").value) };
     activeVoices.add(voiceRecord);
@@ -2030,13 +2038,15 @@
     src.buffer = decodedBuffer;
     src.playbackRate.value = [0.82, 1, 1.08, 1.22][Math.floor(Math.random() * 4)];
 
-    filter.type = "bandpass";
+    filter.type = "highpass";
     filter.frequency.value = lerp(900, 6800, clamp((analysis.brightness + liveFeedColor.brightness) * 0.5, 0, 1));
-    filter.Q.value = 1.8;
+    filter.Q.value = 0.5;
 
+
+    const drumGain = 0.5 * Number($("drums").value);
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.linearRampToValueAtTime(0.24 * Number($("drums").value), time + 0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.16 + Math.random() * 0.14);
+    gain.gain.exponentialRampToValueAtTime(drumGain, time + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.32 + Math.random() * 0.18);
 
     src.connect(filter).connect(gain).connect(generatedBus);
     src.start(time, onset.offset, 0.07 + Math.random() * 0.16);
