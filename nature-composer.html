@@ -1,1662 +1,2093 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Nature‑Inspired Algorithmic Composer (Web Audio + Markov)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nature → Feed-Imprinted Markov Music</title>
   <style>
-    :root{
-      --bg:#0f1216;
-      --panel:#171c22;
-      --panel2:#12161b;
-      --text:#e9eef5;
-      --muted:#a9b4c2;
-      --accent:#47d16c;
-      --accent2:#3aa0ff;
-      --danger:#ff4d5a;
-      --border:rgba(255,255,255,.08);
+    :root {
+      --bg: #06100e;
+      --panel: rgba(255,255,255,.075);
+      --panel2: rgba(255,255,255,.11);
+      --text: #eafff8;
+      --muted: #9fbeb5;
+      --accent: #70f6c7;
+      --accent2: #91a8ff;
+      --gold: #ffd36e;
+      --danger: #ff8585;
     }
 
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(1200px 600px at 70% -10%, rgba(71,209,108,.18), transparent 55%),
-                  radial-gradient(1000px 800px at 10% 0%, rgba(58,160,255,.15), transparent 60%),
-                  var(--bg);
-      color:var(--text);
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(112,246,199,.22), transparent 35%),
+        radial-gradient(circle at 88% 17%, rgba(145,168,255,.18), transparent 38%),
+        linear-gradient(145deg, #030706, var(--bg));
     }
 
-    .wrap{
-      max-width:1100px;
-      margin:0 auto;
-      padding:18px 16px 28px;
+    main {
+      width: min(1240px, 94vw);
+      margin: 0 auto;
+      padding: 28px 0 44px;
     }
 
-    header{
-      display:flex;
-      gap:14px;
-      align-items:flex-start;
-      justify-content:space-between;
-      padding:14px 14px;
-      border:1px solid var(--border);
-      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-      border-radius:14px;
+    header {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 20px;
     }
 
-    header h1{
-      margin:0;
-      font-size:1.25rem;
-      letter-spacing:.2px;
-    }
-    header p{
-      margin:.35rem 0 0;
-      color:var(--muted);
-      line-height:1.35;
-      font-size:.95rem;
-      max-width:70ch;
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: .95;
+      letter-spacing: -.065em;
     }
 
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 10px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.25);
-      color:var(--muted);
-      font-size:.9rem;
-      white-space:nowrap;
+    .subtitle {
+      color: var(--muted);
+      max-width: 960px;
+      line-height: 1.5;
+      font-size: 1rem;
     }
 
-    .grid{
-      margin-top:14px;
-      display:grid;
-      gap:14px;
-      grid-template-columns: 1.1fr .9fr;
+    .grid {
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 16px;
+      align-items: start;
     }
 
-    @media (max-width: 980px){
-      .grid{ grid-template-columns: 1fr; }
-      header{ flex-direction:column; }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
     }
 
-    .card{
-      border:1px solid var(--border);
-      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      border-radius:14px;
-      padding:14px;
+    section {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 22px;
+      padding: 18px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 70px rgba(0,0,0,.24);
     }
 
-    .card h2{
-      margin:0 0 10px 0;
-      font-size:1.05rem;
+    h2 {
+      font-size: .9rem;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      color: var(--accent);
+      margin: 0 0 14px;
     }
 
-    .row{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:12px;
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
     }
 
-    @media (max-width: 680px){
-      .row{ grid-template-columns: 1fr; }
+    input[type="file"] {
+      width: 100%;
+      padding: 14px;
+      border: 1px dashed rgba(255,255,255,.22);
+      border-radius: 16px;
+      background: rgba(0,0,0,.23);
+      color: var(--text);
     }
 
-    label{
-      display:block;
-      font-size:.9rem;
-      color:var(--muted);
-      margin-bottom:6px;
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      background: var(--accent);
+      color: #001610;
+      font-weight: 850;
+      cursor: pointer;
+      transition: transform .15s ease, filter .15s ease, opacity .15s ease;
     }
 
-    select, input[type="range"], input[type="number"], button{
-      width:100%;
-      border-radius:10px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.3);
-      color:var(--text);
-      padding:10px 10px;
-      outline:none;
+    button.secondary {
+      background: var(--panel2);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.13);
     }
 
-    input[type="range"]{
-      padding:10px 0;
-      height:42px;
+    button.danger {
+      background: rgba(255,133,133,.18);
+      color: #ffdede;
+      border: 1px solid rgba(255,133,133,.35);
     }
 
-    button{
-      background: linear-gradient(180deg, rgba(71,209,108,.22), rgba(71,209,108,.10));
-      cursor:pointer;
-      font-weight:650;
-      letter-spacing:.2px;
-    }
-    button:hover{ border-color: rgba(71,209,108,.5); }
-    button:active{ transform: translateY(1px); }
-
-    .btnRow{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-      margin-top:10px;
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
     }
 
-    .btnSecondary{
-      background: rgba(0,0,0,.25);
-      font-weight:600;
-    }
-    .btnDanger{
-      background: linear-gradient(180deg, rgba(255,77,90,.22), rgba(255,77,90,.10));
+    button:not(:disabled):hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
     }
 
-    .small{
-      font-size:.88rem;
-      color:var(--muted);
-      line-height:1.35;
+    .controls {
+      display: grid;
+      gap: 14px;
+      margin-top: 14px;
     }
 
-    .inline{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
+    .control {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(0,0,0,.17);
+      border: 1px solid rgba(255,255,255,.08);
     }
 
-    .value{
-      color:var(--text);
+    .control-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .value {
+      color: var(--accent);
       font-variant-numeric: tabular-nums;
+      font-size: .86rem;
     }
 
-    .checks{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-      margin-top:6px;
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
     }
 
-    .check{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      border:1px solid var(--border);
-      background:rgba(0,0,0,.22);
-      border-radius:12px;
-      padding:10px;
-      user-select:none;
-    }
-    .check input{ width:auto; }
-    .check strong{ font-size:.95rem; }
-    .check span{ display:block; font-size:.85rem; color:var(--muted); margin-top:2px; }
-
-    .viz{
-      margin-top:12px;
-      background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.22));
-      border:1px solid var(--border);
-      border-radius:14px;
-      overflow:hidden;
-    }
-    canvas{ display:block; width:100%; height:220px; }
-
-    .status{
-      margin-top:10px;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.25);
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:10px;
-      color:var(--muted);
-      font-size:.9rem;
-      line-height:1.35;
-    }
-    .status b{ color:var(--text); }
-
-    .mono{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-size:.85rem;
+    .status {
+      margin-top: 14px;
+      min-height: 46px;
+      padding: 12px;
+      border-radius: 16px;
+      color: var(--muted);
+      background: rgba(0,0,0,.18);
+      line-height: 1.45;
+      font-size: .9rem;
     }
 
-    .hr{
-      height:1px;
-      background: var(--border);
-      margin:12px 0;
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
     }
 
-    .hint{
-      color:var(--muted);
-      font-size:.88rem;
-      margin-top:8px;
+    @media (max-width: 680px) {
+      .metrics { grid-template-columns: repeat(2, 1fr); }
     }
 
-    .kbd{
-      font-family: ui-monospace, monospace;
-      padding:2px 6px;
-      border:1px solid var(--border);
-      border-bottom-color: rgba(255,255,255,.18);
-      background: rgba(0,0,0,.25);
-      border-radius:8px;
-      color:var(--text);
-      font-size:.82rem;
+    .metric {
+      background: rgba(0,0,0,.20);
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .metric b {
+      display: block;
+      color: var(--text);
+      font-size: 1.28rem;
+      letter-spacing: -.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .10em;
+    }
+
+    canvas {
+      width: 100%;
+      display: block;
+      border-radius: 18px;
+      background: rgba(0,0,0,.30);
+      border: 1px solid rgba(255,255,255,.10);
+      margin-top: 12px;
+    }
+
+    .small {
+      font-size: .83rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(255,255,255,.08);
+      color: var(--muted);
+      font-size: .8rem;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 99px;
+      background: var(--danger);
+      box-shadow: 0 0 18px currentColor;
+    }
+
+    .dot.live {
+      background: var(--accent);
+      color: var(--accent);
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.45;
     }
   </style>
 </head>
 
 <body>
-<div class="wrap">
+<main>
   <header>
-    <div>
-      <h1>Nature‑Inspired Algorithmic Composer</h1>
-      <p>
-        This page <b>pre‑analyzes</b> a selected nature recording (rain / ocean / forest / birds) to extract dominant
-        frequencies, event timings, and texture features. Those sequences train <b>three Markov chains</b>
-        (pitch, timing, texture). You can then morph from ambience → melody using the entropy slider.
-      </p>
-      <p class="small">
-        To run: save this file as <span class="kbd">nature-composer.html</span> and put audio files in
-        <span class="kbd">./sounds/</span>:
-        <span class="kbd">rain.mp3</span>, <span class="kbd">ocean.mp3</span>, <span class="kbd">forest.mp3</span>, <span class="kbd">birds.mp3</span>.
-        Serve via a local server (recommended): <span class="kbd">python -m http.server</span>.
-      </p>
-    </div>
-    <div class="pill">
-      <span>Web Audio API</span>
-      <span style="opacity:.55">•</span>
-      <span class="mono" id="audioState">audio: idle</span>
-    </div>
+    <h1>Nature → Feed-Imprinted Markov Music</h1>
+    <p class="subtitle">
+      This version treats pitch as a full feed gesture, not just a note. For bird recordings, the pitch Markov chain
+      preserves chirp contour, register, attack, brightness, noisiness, duration, spacing, and the original source
+      snippet offset. Generated sound should retain bird-like chirps and timbral traces instead of becoming an unrelated
+      melodic song.
+    </p>
   </header>
 
   <div class="grid">
-    <div class="card">
-      <h2>Controls</h2>
+    <section>
+      <h2>Feed & Transport</h2>
 
-      <div class="row">
-        <div>
-          <label for="natureSelect">Nature sound (used for analysis + ambience)</label>
-          <select id="natureSelect">
-            <option value="rain">Rain</option>
-            <option value="ocean">Ocean Waves</option>
-            <option value="forest">Forest</option>
-            <option value="birds">Birds Chirping</option>
-          </select>
-          <div class="hint">Selecting a new sound will re‑train chains (cached after first analysis).</div>
+      <input id="file" type="file" accept=".wav,audio/wav,audio/*" />
+
+      <div class="row" style="margin-top:14px;">
+        <button id="startBtn" disabled>Start</button>
+        <button id="stopBtn" class="danger" disabled>Stop</button>
+        <button id="exportBtn" class="secondary" disabled>Export WAV</button>
+      </div>
+
+      <div class="status" id="status">Choose a WAV file to begin multi-attribute feed analysis.</div>
+
+      <div class="controls">
+        <div class="control">
+          <div class="control-head">
+            <label for="entropy">Entropy / randomness</label>
+            <span class="value" id="entropyVal">0.22</span>
+          </div>
+          <input id="entropy" type="range" min="0" max="1" step="0.01" value="0.22" />
         </div>
 
-        <div>
-          <label for="analysisSeconds">Analysis length (seconds)</label>
-          <input id="analysisSeconds" type="number" min="5" max="60" step="1" value="20" />
-          <div class="hint">Shorter is faster. The Markov chains are trained from this slice.</div>
+        <div class="control">
+          <div class="control-head">
+            <label for="complexity">Melodic song ↔ feed recreation</label>
+            <span class="value" id="complexityVal">0.25</span>
+          </div>
+          <input id="complexity" type="range" min="0" max="1" step="0.01" value="0.25" />
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="tempo">Tempo / gesture spacing</label>
+            <span class="value" id="tempoVal">78 BPM</span>
+          </div>
+          <input id="tempo" type="range" min="40" max="150" step="1" value="78" />
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="density">Texture density</label>
+            <span class="value" id="densityVal">0.44</span>
+          </div>
+          <input id="density" type="range" min="0" max="1" step="0.01" value="0.44" />
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="drums">Feed percussion / attacks</label>
+            <span class="value" id="drumsVal">0.58</span>
+          </div>
+          <input id="drums" type="range" min="0" max="1" step="0.01" value="0.58" />
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="bass">Bass / harmonic ground</label>
+            <span class="value" id="bassVal">0.60</span>
+          </div>
+          <input id="bass" type="range" min="0" max="1" step="0.01" value="0.60" />
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <label for="synth">Feed-imprinted synth layer</label>
+            <span class="value" id="synthVal">0.82</span>
+          </div>
+          <input id="synth" type="range" min="0" max="1" step="0.01" value="0.82" />
         </div>
       </div>
 
-      <div class="hr"></div>
-
-      <div>
-        <label>Optional instrument chains (each trains its own Markov chains)</label>
-        <div class="checks">
-          <label class="check">
-            <input id="instDrums" type="checkbox" checked />
-            <div>
-              <strong>Drums</strong>
-              <span>Noise + simple kick/snare/hat selection from pitch chain</span>
-            </div>
-          </label>
-
-          <label class="check">
-            <input id="instBass" type="checkbox" checked />
-            <div>
-              <strong>Bass</strong>
-              <span>Square/sine bass; pitch from chain + scale snapping</span>
-            </div>
-          </label>
-
-          <label class="check">
-            <input id="instPad" type="checkbox" checked />
-            <div>
-              <strong>Pad</strong>
-              <span>Soft triangle/saw pad; slower envelopes</span>
-            </div>
-          </label>
-
-          <label class="check">
-            <input id="instLead" type="checkbox" />
-            <div>
-              <strong>Lead</strong>
-              <span>Brighter saw lead (more obvious melody)</span>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div class="hr"></div>
-
-      <div>
-        <div class="inline">
-          <label for="entropySlider" style="margin:0;">Entropy / Melody (target)</label>
-          <div class="value mono" id="entropyValue">0.20</div>
-        </div>
-        <input id="entropySlider" type="range" min="0" max="1" step="0.01" value="0.20" />
-        <div class="small">
-          Low entropy: follows learned Markov transitions (more stable, more "nature‑like").
-          High entropy: mixes in uniform randomness (more surprise, more overt melody).
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:12px;">
-        <div>
-          <label class="inline" style="margin-bottom:6px;">
-            <span>Auto‑evolve from 0 → target</span>
-            <span class="value mono" id="evolveState">on</span>
-          </label>
-          <select id="autoEvolve">
-            <option value="on" selected>On (gradual evolution)</option>
-            <option value="off">Off (manual only)</option>
-          </select>
-        </div>
-        <div>
-          <label class="inline" style="margin-bottom:6px;">
-            <span>Evolution time (seconds)</span>
-            <span class="value mono" id="evolveSecondsValue">45</span>
-          </label>
-          <input id="evolveSeconds" type="range" min="5" max="180" step="1" value="45" />
-        </div>
-      </div>
-
-      <div class="btnRow">
-        <button id="startBtn">Start / Restart</button>
-        <button id="stopBtn" class="btnDanger">Stop</button>
-      </div>
-
-      <div class="status" id="statusBox">
-        <div>
-          <div><b>Status</b>: <span id="statusText">Ready. Click Start.</span></div>
-          <div class="mono" id="analysisStats">analysis: (not yet)</div>
-        </div>
-        <div class="mono" id="mixStats">mix: nature=— synth=—</div>
-      </div>
-
-      <p class="small" style="margin:10px 2px 0;">
-        Optional online analysis hook: an <span class="kbd">AnalyserNode</span> is attached to the master bus
-        so you can inspect spectra in real time if you want to adapt chains while playing.
+      <p class="footer-note">
+        The melody slider is now a continuum: low values preserve feed gestures, chirps, attacks, grains, and noise;
+        high values transform those same gestures into more quantized, song-like melodic material.
       </p>
-    </div>
+    </section>
 
-    <div class="card">
-      <h2>Entropy Visualization (real‑time)</h2>
-      <div class="small">
-        Shows the live entropy value used by the generators (after auto‑evolution smoothing).
-      </div>
-      <div class="viz">
-        <canvas id="viz"></canvas>
-      </div>
-      <div class="status" style="margin-top:12px;">
-        <div>
-          <div><b>Tip</b>: if you need true "offline preprocessing" for production, you can run analysis once, export JSON,
-            and load it instead of computing in the browser.</div>
-          <div class="small">This demo computes analysis in-browser, but it happens <i>before</i> generation, so it's still "offline" relative to playback.</div>
+    <section>
+      <h2>Realtime Analysis & Evolution</h2>
+
+      <div class="metrics">
+        <div class="metric">
+          <b id="mEntropy">0.00</b>
+          <span>Entropy</span>
+        </div>
+        <div class="metric">
+          <b id="mEvolution">0%</b>
+          <span>Evolution</span>
+        </div>
+        <div class="metric">
+          <b id="mRoot">—</b>
+          <span>Root / Center</span>
+        </div>
+        <div class="metric">
+          <b id="mGestures">—</b>
+          <span>Pitch Gestures</span>
         </div>
       </div>
-    </div>
+
+      <span class="pill"><span id="liveDot" class="dot"></span><span id="liveText">Idle</span></span>
+      <p class="small">
+        The pitch chain state is multi-dimensional: start pitch, end pitch, contour, duration, attack, brightness,
+        noisiness, texture class, rhythmic gap, and original feed offset.
+      </p>
+
+      <canvas id="bars" width="900" height="180"></canvas>
+      <canvas id="spec" width="900" height="220"></canvas>
+      <canvas id="evo" width="900" height="120"></canvas>
+    </section>
   </div>
-</div>
+</main>
 
 <script>
 (() => {
   "use strict";
 
-  /* =========================================================================
-     Utility helpers
-     ========================================================================= */
+  /******************************************************************
+   * Helpers
+   ******************************************************************/
 
-  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const lerp = (a, b, t) => a + (b - a) * t;
+  const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const freqToMidi = (f) => 69 + 12 * Math.log2(Math.max(1, f) / 440);
+  const noteNames = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
+  const nowString = () => new Date().toISOString().replace(/[:.]/g, "-");
 
-  function quantize(x, step){
-    return Math.round(x / step) * step;
+  function median(arr) {
+    if (!arr || !arr.length) return null;
+    const s = arr.slice().sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
   }
 
-  // Convert MIDI note to frequency (Hz).
-  function midiToFreq(midi){
-    return 440 * Math.pow(2, (midi - 69) / 12);
+  function mode(arr) {
+    if (!arr.length) return null;
+    const c = new Map();
+    for (const x of arr) c.set(x, (c.get(x) || 0) + 1);
+    return [...c.entries()].sort((a, b) => b[1] - a[1])[0][0];
   }
 
-  // Convert frequency (Hz) to MIDI note number (float).
-  function freqToMidi(freq){
-    return 69 + 12 * Math.log2(freq / 440);
-  }
-
-  // Wrap to [0, 12)
-  function pitchClassFromMidi(midi){
-    const pc = ((Math.round(midi) % 12) + 12) % 12;
-    return pc;
-  }
-
-  // Snap MIDI note to pentatonic scale (adds melodic structure)
-  function snapToScale(midi){
-    const pc = pitchClassFromMidi(midi);
-    const penta = [0, 2, 4, 7, 9]; // pentatonic: C, D, E, G, A
-    let best = penta[0];
-    let bestDist = Math.abs(pc - best);
-
-    for (const p of penta){
-      const dist = Math.abs(pc - p);
-      if (dist < bestDist){
-        bestDist = dist;
-        best = p;
-      }
+  function rmsOf(data, start, len) {
+    let s = 0;
+    for (let i = 0; i < len; i++) {
+      const v = data[start + i] || 0;
+      s += v * v;
     }
-
-    const octave = Math.floor(midi / 12);
-    return octave * 12 + best;
+    return Math.sqrt(s / len);
   }
 
-  // Choose an item from [items] according to [weights] (same length).
-  function weightedChoice(items, weights){
-    let sum = 0;
-    for (const w of weights) sum += w;
-    if (sum <= 0) return items[Math.floor(Math.random() * items.length)];
-
-    let r = Math.random() * sum;
-    for (let i = 0; i < items.length; i++){
-      r -= weights[i];
-      if (r <= 0) return items[i];
-    }
-    return items[items.length - 1];
-  }
-
-  // A gentle easing so evolution feels smoother.
-  function easeInOut(t){
-    t = clamp(t, 0, 1);
-    return t * t * (3 - 2 * t);
-  }
-
-  /* =========================================================================
-     Markov chain (order-1) with entropy mixing
-     - Trains from a discrete sequence: s0, s1, s2...
-     - At sample time: mixes learned distribution with uniform distribution.
-     ========================================================================= */
+  /******************************************************************
+   * Markov chain
+   ******************************************************************/
 
   class MarkovChain {
-    /**
-     * @param {Map<any, Map<any, number>>} transitions counts: state -> (nextState -> count)
-     * @param {Array<any>} states list of all states
-     */
-    constructor(transitions, states){
-      this.transitions = transitions;
-      this.states = states;
-      this._uniformProb = 1 / Math.max(1, states.length);
-    }
-
-    static fromSequence(seq, {smoothing = 1} = {}){
-      const states = Array.from(new Set(seq));
-      const transitions = new Map();
-
-      for (let i = 0; i < seq.length - 1; i++){
-        const a = seq[i];
-        const b = seq[i + 1];
-        if (!transitions.has(a)) transitions.set(a, new Map());
-        const m = transitions.get(a);
-        m.set(b, (m.get(b) || 0) + 1);
-      }
-
-      // Laplace smoothing so every next state is possible (avoids dead ends).
-      for (const s of states){
-        if (!transitions.has(s)) transitions.set(s, new Map());
-        const m = transitions.get(s);
-        for (const n of states){
-          m.set(n, (m.get(n) || 0) + smoothing);
-        }
-      }
-
-      return new MarkovChain(transitions, states);
-    }
-
-    randomState(){
-      return this.states[Math.floor(Math.random() * this.states.length)];
-    }
-
-    /**
-     * Sample next state.
-     * @param {any} currentState
-     * @param {number} entropy 0..1
-     *  entropy = 0: strongly follows learned transitions (argmax-ish)
-     *  entropy = 1: uniform random
-     */
-    next(currentState, entropy){
-      const states = this.states;
-      if (!states.length) return null;
-
-      const m = this.transitions.get(currentState);
-      if (!m){
-        // Unknown state -> fallback to uniform.
-        return this.randomState();
-      }
-
-      // Build probability distribution from counts.
-      const items = [];
-      const probs = [];
-
-      let total = 0;
-      for (const s of states){
-        const c = m.get(s) || 0;
-        total += c;
-      }
-      if (total <= 0) return this.randomState();
-
-      for (const s of states){
-        const pLearned = (m.get(s) || 0) / total;
-        const pUniform = this._uniformProb;
-
-        // Mix learned + uniform. Higher entropy -> flatter.
-        const p = lerp(pLearned, pUniform, entropy);
-        items.push(s);
-        probs.push(p);
-      }
-
-      // Make ultra-stable at very low entropy by choosing the maximum probability.
-      if (entropy < 0.04){
-        let bestI = 0;
-        for (let i = 1; i < probs.length; i++){
-          if (probs[i] > probs[bestI]) bestI = i;
-        }
-        return items[bestI];
-      }
-
-      return weightedChoice(items, probs);
-    }
-  }
-
-  /* =========================================================================
-     Minimal FFT (radix-2 Cooley-Tukey), to enable "offline" frequency analysis
-     ========================================================================= */
-
-  function createFftTables(N){
-    const cos = new Float32Array(N / 2);
-    const sin = new Float32Array(N / 2);
-    for (let i = 0; i < N / 2; i++){
-      const a = -2 * Math.PI * i / N;
-      cos[i] = Math.cos(a);
-      sin[i] = Math.sin(a);
-    }
-
-    // bit-reversal table
-    const rev = new Uint32Array(N);
-    const bits = Math.log2(N) | 0;
-
-    for (let i = 0; i < N; i++){
-      let x = i;
-      let y = 0;
-      for (let b = 0; b < bits; b++){
-        y = (y << 1) | (x & 1);
-        x >>= 1;
-      }
-      rev[i] = y;
-    }
-    return {cos, sin, rev};
-  }
-
-  function fftRadix2InPlace(re, im, tables){
-    const N = re.length;
-    const {cos, sin, rev} = tables;
-
-    // bit reversal permutation
-    for (let i = 0; i < N; i++){
-      const j = rev[i];
-      if (j > i){
-        let tmp = re[i]; re[i] = re[j]; re[j] = tmp;
-        tmp = im[i]; im[i] = im[j]; im[j] = tmp;
-      }
-    }
-
-    // iterative FFT
-    for (let size = 2; size <= N; size <<= 1){
-      const half = size >>> 1;
-      const tableStep = N / size;
-
-      for (let i = 0; i < N; i += size){
-        for (let j = 0; j < half; j++){
-          const k = (j * tableStep) | 0;
-
-          const tpre = re[i + j + half] * cos[k] - im[i + j + half] * sin[k];
-          const tpim = re[i + j + half] * sin[k] + im[i + j + half] * cos[k];
-
-          re[i + j + half] = re[i + j] - tpre;
-          im[i + j + half] = im[i + j] - tpim;
-
-          re[i + j] += tpre;
-          im[i + j] += tpim;
-        }
-      }
-    }
-  }
-
-  function makeHannWindow(N){
-    const w = new Float32Array(N);
-    for (let i = 0; i < N; i++){
-      w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (N - 1)));
-    }
-    return w;
-  }
-
-  /* =========================================================================
-     Offline analysis of a decoded AudioBuffer:
-     - Computes per-frame RMS energy
-     - Computes dominant frequency per frame via FFT peak
-     - Detects "events" from energy rises (onset-ish)
-     - Builds 3 discrete sequences: pitch (pitch class), timing (seconds), texture (0..1)
-     ========================================================================= */
-
-  async function analyzeNatureBuffer(audioBuffer, {
-    maxSeconds = 20,
-    fftSize = 2048,
-    hopSize = 1024,
-    minFreq = 60,
-    maxFreq = 3000,
-    textureLevels = 8,
-    timingQuant = 0.05,
-    yieldEveryFrames = 80,
-    onProgress = null,
-  } = {}){
-    const sr = audioBuffer.sampleRate;
-    const nCh = audioBuffer.numberOfChannels;
-
-    // Mix to mono.
-    const length = Math.min(audioBuffer.length, Math.floor(maxSeconds * sr));
-    const mono = new Float32Array(length);
-
-    const ch0 = audioBuffer.getChannelData(0);
-    if (nCh === 1){
-      mono.set(ch0.subarray(0, length));
-    } else {
-      const ch1 = audioBuffer.getChannelData(1);
-      for (let i = 0; i < length; i++){
-        mono[i] = 0.5 * (ch0[i] + ch1[i]);
-      }
-    }
-
-    // Frame count
-    const frames = Math.max(1, Math.floor((length - fftSize) / hopSize));
-    const tables = createFftTables(fftSize);
-    const win = makeHannWindow(fftSize);
-
-    const energy = new Float32Array(frames);
-    const peakFreq = new Float32Array(frames);
-    const centroid = new Float32Array(frames);
-
-    const re = new Float32Array(fftSize);
-    const im = new Float32Array(fftSize);
-
-    const minBin = Math.max(1, Math.floor(minFreq * fftSize / sr));
-    const maxBin = Math.min((fftSize / 2) - 1, Math.floor(maxFreq * fftSize / sr));
-
-    let globalMaxEnergy = 1e-9;
-
-    for (let f = 0; f < frames; f++){
-      const start = f * hopSize;
-
-      // windowed frame + RMS
-      let sumSq = 0;
-      for (let i = 0; i < fftSize; i++){
-        const x = (mono[start + i] || 0) * win[i];
-        re[i] = x;
-        im[i] = 0;
-        sumSq += x * x;
-      }
-      const rms = Math.sqrt(sumSq / fftSize);
-      energy[f] = rms;
-      if (rms > globalMaxEnergy) globalMaxEnergy = rms;
-
-      // FFT
-      fftRadix2InPlace(re, im, tables);
-
-      // Find peak + centroid using power spectrum (no sqrt needed)
-      let bestPow = -1;
-      let bestBin = minBin;
-
-      let sumPow = 1e-12;
-      let sumFreqPow = 0;
-
-      for (let b = minBin; b <= maxBin; b++){
-        const rr = re[b], ii = im[b];
-        const p = rr * rr + ii * ii; // power
-        if (p > bestPow){
-          bestPow = p;
-          bestBin = b;
-        }
-        const freq = b * sr / fftSize;
-        sumPow += p;
-        sumFreqPow += freq * p;
-      }
-
-      peakFreq[f] = bestBin * sr / fftSize;
-      centroid[f] = sumFreqPow / sumPow;
-
-      if (onProgress && (f % 10 === 0)){
-        onProgress(f / frames);
-      }
-
-      if (f > 0 && (f % yieldEveryFrames === 0)){
-        // yield to keep UI responsive
-        await new Promise(requestAnimationFrame);
-      }
-    }
-
-    // Onset-ish event detection from energy differences.
-    const diff = new Float32Array(frames);
-    let meanDiff = 0;
-    for (let i = 1; i < frames; i++){
-      const d = Math.max(0, energy[i] - energy[i - 1]);
-      diff[i] = d;
-      meanDiff += d;
-    }
-    meanDiff /= Math.max(1, frames - 1);
-
-    // Threshold: meanDiff * factor. (Works reasonably across many textures.)
-    const thresh = meanDiff * 2.5;
-
-    const eventFrames = [];
-    for (let i = 2; i < frames - 2; i++){
-      const isPeak =
-        diff[i] > thresh &&
-        diff[i] > diff[i - 1] &&
-        diff[i] > diff[i + 1];
-
-      if (isPeak) eventFrames.push(i);
-    }
-
-    // Fallback: if nature sound is too steady, synthesize "events" regularly.
-    if (eventFrames.length < 12){
-      const step = Math.max(1, Math.floor((sr * 0.35) / hopSize)); // ~350ms
-      for (let i = step; i < frames; i += step) eventFrames.push(i);
-    }
-
-    // Build sequences: pitch classes, timings, textures.
-    const pitchSeq = [];
-    const timingSeq = [];
-    const textureSeq = [];
-
-    // Normalize texture from RMS energy + a bit of centroid "brightness".
-    function toTextureLevel(rms, cent){
-      const eNorm = clamp(rms / globalMaxEnergy, 0, 1);
-      const bright = clamp((cent - minFreq) / (maxFreq - minFreq), 0, 1);
-      const mix = 0.75 * eNorm + 0.25 * bright;
-      const q = Math.round(mix * (textureLevels - 1)) / (textureLevels - 1);
-      return q;
-    }
-
-    // Convert dominant frequency -> pitch class (0..11)
-    function toPitchClass(freq){
-      const midi = freqToMidi(Math.max(1, freq));
-      return pitchClassFromMidi(midi);
-    }
-
-    let prevTime = null;
-    for (const fr of eventFrames){
-      const t = (fr * hopSize) / sr;
-
-      if (prevTime !== null){
-        const dt = clamp(t - prevTime, 0.05, 2.0);
-        timingSeq.push(quantize(dt, timingQuant));
-      }
-      prevTime = t;
-
-      pitchSeq.push(toPitchClass(peakFreq[fr]));
-      textureSeq.push(toTextureLevel(energy[fr], centroid[fr]));
-    }
-
-    // Ensure sequences have enough length.
-    if (timingSeq.length < 2){
-      timingSeq.push(0.35, 0.45, 0.25, 0.55);
-    }
-    if (pitchSeq.length < 4){
-      pitchSeq.push(0, 3, 5, 7, 10, 0, 7);
-    }
-    if (textureSeq.length < 4){
-      textureSeq.push(0.35, 0.55, 0.45, 0.65, 0.5);
-    }
-
-    return {
-      meta: {sampleRate: sr, maxSeconds, fftSize, hopSize, frames, events: eventFrames.length},
-      pitchSeq,
-      timingSeq,
-      textureSeq,
-    };
-  }
-
-  /* =========================================================================
-     Drum Synth: generates kick, snare, hat
-     ========================================================================= */
-
-  class DrumSynth {
-    constructor(ctx, out){
-      this.ctx = ctx;
-      this.out = out;
-
-      // Pre-create noise buffer (reusable)
-      const noiseBufLen = ctx.sampleRate * 1;
-      this.noiseBuf = ctx.createBuffer(1, noiseBufLen, ctx.sampleRate);
-      const data = this.noiseBuf.getChannelData(0);
-      for (let i = 0; i < noiseBufLen; i++){
-        data[i] = Math.random() * 2 - 1;
-      }
-    }
-
-    trigger(type, time, vel, brightness){
-      const ctx = this.ctx;
-      vel = clamp(vel, 0, 1);
-
-      if (type === 0){
-        // Kick: sine sweep downward
-        const osc = ctx.createOscillator();
-        osc.type = "sine";
-
-        const freq = lerp(85, 45, brightness);
-        const bendFreq = lerp(170, 85, brightness);
-
-        osc.frequency.setValueAtTime(bendFreq, time);
-        osc.frequency.exponentialRampToValueAtTime(freq, time + 0.08);
-        osc.frequency.exponentialRampToValueAtTime(35, time + 0.15);
-
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.0001, time);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.22);
-
-        osc.connect(gain).connect(this.out);
-        osc.start(time);
-        osc.stop(time + 0.25);
-        return;
-      }
-
-      // Noise-based snare/hat
-      const src = ctx.createBufferSource();
-      src.buffer = this.noiseBuf;
-
-      const bp = ctx.createBiquadFilter();
-      bp.type = "bandpass";
-      const center = type === 1 ? lerp(900, 1800, brightness) : lerp(4500, 9000, brightness);
-      const q = type === 1 ? 0.9 : 3.5;
-      bp.frequency.setValueAtTime(center, time);
-      bp.Q.setValueAtTime(q, time);
-
-      const gain = ctx.createGain();
-      const dur = type === 1 ? 0.18 : 0.06;
-
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.exponentialRampToValueAtTime((type === 1 ? 0.8 : 0.5) * vel + 0.0001, time + 0.002);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-
-      src.connect(bp).connect(gain).connect(this.out);
-      src.start(time);
-      src.stop(time + dur + 0.02);
-    }
-  }
-
-  class MonoSynth {
-    constructor(ctx, out, {
-      oscType = "sawtooth",
-      filterType = "lowpass",
-      baseCutoff = 800,
-      cutoffRange = 4000,
-      attack = 0.01,
-      decay = 0.12,
-      sustain = 0.0,
-      release = 0.18,
-      detuneCents = 0,
-      gain = 0.35
-    } = {}){
-      this.ctx = ctx;
-      this.out = out;
-
-      this.oscType = oscType;
-      this.filterType = filterType;
-      this.baseCutoff = baseCutoff;
-      this.cutoffRange = cutoffRange;
-      this.attack = attack;
-      this.decay = decay;
-      this.sustain = sustain;
-      this.release = release;
-      this.detuneCents = detuneCents;
-      this.gain = gain;
-    }
-
-    trigger(midi, time, vel, brightness, duration = 0.22){
-      const ctx = this.ctx;
-      vel = clamp(vel, 0, 1);
-
-      const osc = ctx.createOscillator();
-      osc.type = this.oscType;
-      osc.frequency.setValueAtTime(midiToFreq(midi), time);
-      osc.detune.setValueAtTime(this.detuneCents, time);
-
-      const filt = ctx.createBiquadFilter();
-      filt.type = this.filterType;
-      const cutoff = this.baseCutoff + this.cutoffRange * clamp(brightness, 0, 1);
-      filt.frequency.setValueAtTime(cutoff, time);
-      filt.Q.setValueAtTime(0.8, time);
-
-      const amp = ctx.createGain();
-      const g = (this.gain * vel);
-
-      // ADSR-ish
-      amp.gain.setValueAtTime(0.0001, time);
-      amp.gain.exponentialRampToValueAtTime(g + 0.0001, time + this.attack);
-      amp.gain.exponentialRampToValueAtTime((g * (this.sustain + 0.0001)) + 0.0001, time + this.attack + this.decay);
-      amp.gain.setTargetAtTime(0.0001, time + duration, this.release);
-
-      osc.connect(filt).connect(amp).connect(this.out);
-      osc.start(time);
-      osc.stop(time + duration + this.release * 6);
-    }
-  }
-
-  class PadSynth {
-    constructor(ctx, out){
-      this.ctx = ctx;
-      this.out = out;
-    }
-
-    trigger(midi, time, vel, brightness, duration = 0.9){
-      const ctx = this.ctx;
-      vel = clamp(vel, 0, 1);
-
-      const o1 = ctx.createOscillator();
-      const o2 = ctx.createOscillator();
-      o1.type = "triangle";
-      o2.type = "sawtooth";
-
-      const f = midiToFreq(midi);
-      o1.frequency.setValueAtTime(f, time);
-      o2.frequency.setValueAtTime(f * 0.5, time); // sub harmonic pad-ish
-      o2.detune.setValueAtTime(7, time);
-
-      const lp = ctx.createBiquadFilter();
-      lp.type = "lowpass";
-      lp.frequency.setValueAtTime(lerp(600, 4500, brightness), time);
-      lp.Q.setValueAtTime(0.7, time);
-
-      const amp = ctx.createGain();
-      const a = 0.08, r = 0.45;
-      const g = 0.22 * vel;
-
-      amp.gain.setValueAtTime(0.0001, time);
-      amp.gain.exponentialRampToValueAtTime(g + 0.0001, time + a);
-      amp.gain.setTargetAtTime(0.0001, time + duration, r);
-
-      const mix = ctx.createGain();
-      mix.gain.value = 1;
-
-      o1.connect(mix);
-      o2.connect(mix);
-      mix.connect(lp).connect(amp).connect(this.out);
-
-      o1.start(time); o2.start(time);
-      o1.stop(time + duration + r * 6);
-      o2.stop(time + duration + r * 6);
-    }
-  }
-
-  /* =========================================================================
-     InstrumentEngine: one instrument + its own three Markov chains
-     ========================================================================= */
-
-  class InstrumentEngine {
-    /**
-     * @param {object} opts
-     * @param {AudioContext} opts.ctx
-     * @param {string} opts.name
-     * @param {object} opts.instrument concrete synth with trigger(...)
-     * @param {MarkovChain} opts.pitchChain
-     * @param {MarkovChain} opts.timingChain
-     * @param {MarkovChain} opts.textureChain
-     * @param {function(number): number} opts.pitchMap maps pitch-class -> MIDI
-     * @param {number} opts.densityBias multiplies timing (lower=faster)
-     */
-    constructor({
-      ctx,
-      name,
-      instrument,
-      pitchChain,
-      timingChain,
-      textureChain,
-      pitchMap,
-      densityBias = 1
-    }){
-      this.ctx = ctx;
+    constructor(name, fallbackStates = []) {
       this.name = name;
-      this.instrument = instrument;
-
-      this.pitchChain = pitchChain;
-      this.timingChain = timingChain;
-      this.textureChain = textureChain;
-
-      this.pitchMap = pitchMap;
-      this.densityBias = densityBias;
-
-      this.running = false;
-      this.nextTime = 0;
-
-      this._curPitch = pitchChain.randomState();
-      this._curTiming = timingChain.randomState();
-      this._curTexture = textureChain.randomState();
+      this.transitions = new Map();
+      this.states = fallbackStates.slice();
     }
 
-    reset(startTime){
-      this.running = true;
-      this.nextTime = startTime;
+    addTransition(a, b) {
+      if (a == null || b == null) return;
+      a = String(a);
+      b = String(b);
 
-      this._curPitch = this.pitchChain.randomState();
-      this._curTiming = this.timingChain.randomState();
-      this._curTexture = this.textureChain.randomState();
+      if (!this.transitions.has(a)) this.transitions.set(a, new Map());
+      const row = this.transitions.get(a);
+      row.set(b, (row.get(b) || 0) + 1);
+
+      if (!this.states.includes(a)) this.states.push(a);
+      if (!this.states.includes(b)) this.states.push(b);
     }
 
-    stop(){
-      this.running = false;
-    }
-
-    /**
-     * Schedule events up to horizonTime.
-     * @param {number} horizonTime
-     * @param {number} entropyLive 0..1
-     */
-    scheduleUntil(horizonTime, entropyLive){
-      if (!this.running) return;
-
-      const ctx = this.ctx;
-
-      while (this.nextTime < horizonTime){
-        // Choose next states.
-        const nextPitch = this.pitchChain.next(this._curPitch, entropyLive);
-        const nextTiming = this.timingChain.next(this._curTiming, entropyLive);
-        const nextTexture = this.textureChain.next(this._curTexture, entropyLive);
-
-        this._curPitch = nextPitch;
-        this._curTiming = nextTiming;
-        this._curTexture = nextTexture;
-
-        // Interpret texture as vel + brightness.
-        const texture = Number(nextTexture);
-        const vel = lerp(0.18, 1.0, texture);
-        const brightness = clamp(lerp(0.15, 1.0, texture), 0, 1);
-
-        // Timing: increase density as entropy increases so it "becomes music".
-        const densityMul = lerp(1.6, 0.65, entropyLive);
-        const dt = clamp(Number(nextTiming) * this.densityBias * densityMul, 0.05, 2.5);
-
-        // Pitch mapping
-        let midi = this.pitchMap(nextPitch);
-
-        if (Math.random() < entropyLive){
-          // More entropy => more "scale-based melody"
-          midi = snapToScale(midi);
-        }
-
-        // Trigger instrument
-        this._triggerAt(this.nextTime, midi, vel, brightness, entropyLive);
-
-        // schedule next
-        this.nextTime += dt;
-
-        // Avoid runaway scheduling if something went wrong.
-        if (this.nextTime > ctx.currentTime + 10) break;
+    train(sequence) {
+      for (let i = 0; i < sequence.length - 1; i++) {
+        this.addTransition(sequence[i], sequence[i + 1]);
       }
     }
 
-    _triggerAt(time, midi, vel, brightness, entropyLive){
-      // Special-case drums: we interpret "midi" as an index and ignore pitch.
-      if (this.name === "drums"){
-        const pc = Number(midi) | 0;
-        const drumType = pc % 3;
-        this.instrument.trigger(drumType, time, vel, brightness);
-        return;
+    choose(current, entropy = 0.2) {
+      if (!this.states.length) return null;
+
+      current = String(current);
+
+      if (Math.random() < entropy * 0.34 || !this.transitions.has(current)) {
+        return this.states[Math.floor(Math.random() * this.states.length)];
       }
 
-      const dur = lerp(0.18, 0.55, clamp(1 - entropyLive, 0, 1));
-      this.instrument.trigger(midi, time, vel, brightness, dur);
+      const options = [...this.transitions.get(current).entries()];
+      const temperature = 0.34 + entropy * 2.2;
+      const weights = options.map(([, count]) => Math.pow(count, 1 / temperature));
+      const total = weights.reduce((a, b) => a + b, 0);
+
+      let r = Math.random() * total;
+      for (let i = 0; i < options.length; i++) {
+        r -= weights[i];
+        if (r <= 0) return options[i][0];
+      }
+
+      return options[options.length - 1][0];
     }
   }
 
-  /* =========================================================================
-     Scheduler (lookahead) for stable Web Audio timing
-     ========================================================================= */
+  /******************************************************************
+   * FFT
+   ******************************************************************/
 
-  class Scheduler {
-    constructor(ctx, {lookAhead = 0.2, intervalMs = 25} = {}){
-      this.ctx = ctx;
-      this.lookAhead = lookAhead;
-      this.intervalMs = intervalMs;
-      this._timer = null;
-      this._tick = null;
+  function fft(real, imag) {
+    const n = real.length;
+    let j = 0;
+
+    for (let i = 1; i < n; i++) {
+      let bit = n >> 1;
+      while (j & bit) {
+        j ^= bit;
+        bit >>= 1;
+      }
+      j ^= bit;
+
+      if (i < j) {
+        [real[i], real[j]] = [real[j], real[i]];
+        [imag[i], imag[j]] = [imag[j], imag[i]];
+      }
     }
 
-    start(tickFn){
-      this._tick = tickFn;
-      if (this._timer) clearInterval(this._timer);
-      this._timer = setInterval(() => {
-        const now = this.ctx.currentTime;
-        const horizon = now + this.lookAhead;
-        this._tick(horizon);
-      }, this.intervalMs);
-    }
+    for (let len = 2; len <= n; len <<= 1) {
+      const ang = -2 * Math.PI / len;
+      const wLenR = Math.cos(ang);
+      const wLenI = Math.sin(ang);
 
-    stop(){
-      if (this._timer) clearInterval(this._timer);
-      this._timer = null;
-      this._tick = null;
+      for (let i = 0; i < n; i += len) {
+        let wr = 1;
+        let wi = 0;
+
+        for (let k = 0; k < len / 2; k++) {
+          const uR = real[i + k];
+          const uI = imag[i + k];
+
+          const vR = real[i + k + len / 2] * wr - imag[i + k + len / 2] * wi;
+          const vI = real[i + k + len / 2] * wi + imag[i + k + len / 2] * wr;
+
+          real[i + k] = uR + vR;
+          imag[i + k] = uI + vI;
+          real[i + k + len / 2] = uR - vR;
+          imag[i + k + len / 2] = uI - vI;
+
+          const nextWr = wr * wLenR - wi * wLenI;
+          wi = wr * wLenI + wi * wLenR;
+          wr = nextWr;
+        }
+      }
     }
   }
 
-  /* =========================================================================
-     App: loads nature audio, runs offline analysis, trains chains, plays
-     ========================================================================= */
-
-  class NatureComposerApp {
-    constructor(ui){
-      this.ui = ui;
-
-      this.ctx = null;
-      this.master = null;
-      this.compressor = null;
-
-      this.natureBus = null;
-      this.synthBus = null;
-      this.natureGain = null;
-      this.synthGain = null;
-
-      this.analyser = null;
-
-      this.scheduler = null;
-
-      this.natureSource = null;
-      this.natureBuffers = new Map();
-      this.analysisCache = new Map();
-
-      this.engines = new Map();
-
-      this.startedAt = 0;
-      this.entropyTarget = 0.2;
-      this.entropyLive = 0.0;
-
-      this.running = false;
-    }
-
-    async _ensureAudio(){
-      if (this.ctx) return;
-
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AudioContext();
-
-      this.master = this.ctx.createGain();
-      this.master.gain.value = 0.92;
-
-      this.compressor = this.ctx.createDynamicsCompressor();
-      this.compressor.threshold.value = -18;
-      this.compressor.knee.value = 24;
-      this.compressor.ratio.value = 5;
-      this.compressor.attack.value = 0.003;
-      this.compressor.release.value = 0.12;
-
-      this.natureBus = this.ctx.createGain();
-      this.synthBus  = this.ctx.createGain();
-
-      this.natureGain = this.ctx.createGain();
-      this.synthGain  = this.ctx.createGain();
-
-      this.synthTone = this.ctx.createBiquadFilter();
-      this.synthTone.type = "lowpass";
-      this.synthTone.frequency.value = 1200;
-      this.synthTone.Q.value = 0.7;
-
-      this.natureBus.connect(this.natureGain).connect(this.master);
-      this.synthBus.connect(this.synthTone).connect(this.synthGain).connect(this.master);
-
-      this.master.connect(this.compressor).connect(this.ctx.destination);
-
-      this.analyser = this.ctx.createAnalyser();
-      this.analyser.fftSize = 2048;
-      this.master.connect(this.analyser);
-
-      this.scheduler = new Scheduler(this.ctx, {lookAhead: 0.2, intervalMs: 25});
-
-      this._updateAudioStateUI();
-    }
-
-    _updateAudioStateUI(){
-      const state = this.ctx ? this.ctx.state : "idle";
-      this.ui.audioState.textContent = `audio: ${state}`;
-    }
-
-    async loadNatureBuffer(name){
-      if (this.natureBuffers.has(name)) return this.natureBuffers.get(name);
-
-      const url = `sounds/${name}.mp3`;
-      this._status(`Loading audio: ${url}`);
-
-      const resp = await fetch(url);
-      if (!resp.ok){
-        throw new Error(`Failed to load ${url} (HTTP ${resp.status}). Check ./sounds/ and your local server.`);
-      }
-
-      const arr = await resp.arrayBuffer();
-      const buf = await this.ctx.decodeAudioData(arr);
-      this.natureBuffers.set(name, buf);
-      return buf;
-    }
-
-    async getOrAnalyze(name, buffer, maxSeconds){
-      const key = `${name}__${maxSeconds}s`;
-      if (this.analysisCache.has(key)) return this.analysisCache.get(key);
-
-      this._status(`Analyzing "${name}" (offline FFT + onset-ish detection)...`);
-
-      const analysis = await analyzeNatureBuffer(buffer, {
-        maxSeconds,
-        onProgress: (p) => {
-          this.ui.statusText.textContent = `Analyzing "${name}"... ${(p * 100).toFixed(0)}%`;
-        }
-      });
-
-      this.analysisCache.set(key, analysis);
-      return analysis;
-    }
-
-    _buildChainsFromAnalysis(analysis){
-      const pitchChain = MarkovChain.fromSequence(analysis.pitchSeq, {smoothing: 1});
-      const timingChain = MarkovChain.fromSequence(analysis.timingSeq, {smoothing: 1});
-      const textureChain = MarkovChain.fromSequence(analysis.textureSeq, {smoothing: 1});
-      return {pitchChain, timingChain, textureChain};
-    }
-
-    _status(msg){
-      this.ui.statusText.textContent = msg;
-    }
-
-    _updateMix(entropy){
-      const n = Math.pow(1 - entropy, 1.6);
-      const s = Math.pow(entropy, 1.1);
-
-      const t = this.ctx.currentTime;
-
-      this.natureGain.gain.setTargetAtTime(n, t, 0.05);
-      this.synthGain.gain.setTargetAtTime(s, t, 0.05);
-
-      const cutoff = lerp(900, 7000, entropy);
-      this.synthTone.frequency.setTargetAtTime(cutoff, t, 0.08);
-
-      this.ui.mixStats.textContent = `mix: nature=${n.toFixed(2)} synth=${s.toFixed(2)}`;
-    }
-
-    _computeEntropyLive(){
-      const target = this.entropyTarget;
-      const mode = this.ui.autoEvolve.value;
-      const evolveSeconds = Number(this.ui.evolveSeconds.value);
-
-      if (!this.running) return 0;
-
-      if (mode === "off"){
-        this.entropyLive = target;
-        return this.entropyLive;
-      }
-
-      const elapsed = this.ctx.currentTime - this.startedAt;
-      const t = easeInOut(clamp(elapsed / Math.max(0.001, evolveSeconds), 0, 1));
-      this.entropyLive = lerp(0, target, t);
-      return this.entropyLive;
-    }
-
-    _stopNatureSource(){
-      try{
-        if (this.natureSource){
-          this.natureSource.stop();
-          this.natureSource.disconnect();
-        }
-      }catch(_e){ }
-      this.natureSource = null;
-    }
-
-    _startNatureLoop(buffer){
-      this._stopNatureSource();
-
-      const src = this.ctx.createBufferSource();
-      src.buffer = buffer;
-      src.loop = true;
-
-      const hp = this.ctx.createBiquadFilter();
-      hp.type = "highpass";
-      hp.frequency.value = 40;
-
-      src.connect(hp).connect(this.natureBus);
-      src.start();
-
-      this.natureSource = src;
-    }
-
-    _syncEngines(startTime){
-      for (const e of this.engines.values()){
-        e.reset(startTime);
-      }
-    }
-
-    _clearEngines(){
-      for (const e of this.engines.values()) e.stop();
-      this.engines.clear();
-    }
-
-    _makeInstrumentEngines(analysis){
-      this._clearEngines();
-
-      const ctx = this.ctx;
-      const start = ctx.currentTime + 0.05;
-
-      const enabled = {
-        drums: this.ui.instDrums.checked,
-        bass:  this.ui.instBass.checked,
-        pad:   this.ui.instPad.checked,
-        lead:  this.ui.instLead.checked,
-      };
-
-      if (enabled.drums){
-        const {pitchChain, timingChain, textureChain} = this._buildChainsFromAnalysis(analysis);
-
-        const drums = new DrumSynth(ctx, this.synthBus);
-
-        const engine = new InstrumentEngine({
-          ctx,
-          name: "drums",
-          instrument: drums,
-          pitchChain,
-          timingChain,
-          textureChain,
-          pitchMap: (pc) => Number(pc) | 0,
-          densityBias: 0.85
-        });
-
-        this.engines.set("drums", engine);
-      }
-
-      if (enabled.bass){
-        const {pitchChain, timingChain, textureChain} = this._buildChainsFromAnalysis(analysis);
-
-        const bass = new MonoSynth(ctx, this.synthBus, {
-          oscType: "square",
-          baseCutoff: 250,
-          cutoffRange: 1200,
-          attack: 0.01,
-          decay: 0.08,
-          sustain: 0.0,
-          release: 0.12,
-          gain: 0.35
-        });
-
-        const engine = new InstrumentEngine({
-          ctx,
-          name: "bass",
-          instrument: bass,
-          pitchChain,
-          timingChain,
-          textureChain,
-          pitchMap: (pc) => 36 + Number(pc),
-          densityBias: 1.15
-        });
-
-        this.engines.set("bass", engine);
-      }
-
-      if (enabled.pad){
-        const {pitchChain, timingChain, textureChain} = this._buildChainsFromAnalysis(analysis);
-
-        const pad = new PadSynth(ctx, this.synthBus);
-
-        const engine = new InstrumentEngine({
-          ctx,
-          name: "pad",
-          instrument: pad,
-          pitchChain,
-          timingChain,
-          textureChain,
-          pitchMap: (pc) => 60 + Number(pc),
-          densityBias: 1.75
-        });
-
-        this.engines.set("pad", engine);
-      }
-
-      if (enabled.lead){
-        const {pitchChain, timingChain, textureChain} = this._buildChainsFromAnalysis(analysis);
-
-        const lead = new MonoSynth(ctx, this.synthBus, {
-          oscType: "sawtooth",
-          baseCutoff: 700,
-          cutoffRange: 5200,
-          attack: 0.005,
-          decay: 0.06,
-          sustain: 0.0,
-          release: 0.10,
-          detuneCents: 6,
-          gain: 0.22
-        });
-
-        const engine = new InstrumentEngine({
-          ctx,
-          name: "lead",
-          instrument: lead,
-          pitchChain,
-          timingChain,
-          textureChain,
-          pitchMap: (pc) => 72 + Number(pc),
-          densityBias: 0.95
-        });
-
-        this.engines.set("lead", engine);
-      }
-
-      this._syncEngines(start);
-    }
-
-    async start(){
-      await this._ensureAudio();
-
-      await this.ctx.resume();
-      this._updateAudioStateUI();
-
-      const name = this.ui.natureSelect.value;
-      const maxSeconds = clamp(Number(this.ui.analysisSeconds.value) || 20, 5, 60);
-
-      const buf = await this.loadNatureBuffer(name);
-      const analysis = await this.getOrAnalyze(name, buf, maxSeconds);
-
-      this.ui.analysisStats.textContent =
-        `analysis: events=${analysis.meta.events} frames=${analysis.meta.frames} ` +
-        `fft=${analysis.meta.fftSize} hop=${analysis.meta.hopSize} secs=${analysis.meta.maxSeconds}`;
-
-      this._startNatureLoop(buf);
-      this._makeInstrumentEngines(analysis);
-
-      this.running = true;
-      this.startedAt = this.ctx.currentTime;
-      this.entropyLive = 0;
-
-      this._status(`Playing "${name}". Evolving...`);
-
-      this.scheduler.stop();
-      this.scheduler.start((horizon) => {
-        const e = this._computeEntropyLive();
-        this._updateMix(e);
-
-        for (const engine of this.engines.values()){
-          engine.scheduleUntil(horizon, e);
-        }
-      });
-    }
-
-    stop(){
-      if (!this.ctx) return;
-
-      this.running = false;
-
-      this.scheduler?.stop();
-      this._stopNatureSource();
-      this._clearEngines();
-
-      const t = this.ctx.currentTime;
-      this.natureGain.gain.setTargetAtTime(0, t, 0.05);
-      this.synthGain.gain.setTargetAtTime(0, t, 0.05);
-
-      this._status("Stopped.");
-      this._updateAudioStateUI();
-      this.ui.mixStats.textContent = "mix: nature=— synth=—";
-    }
-  }
-
-  /* =========================================================================
-     UI wiring + visualization
-     ========================================================================= */
-
-  const ui = {
-    audioState: document.getElementById("audioState"),
-
-    natureSelect: document.getElementById("natureSelect"),
-    analysisSeconds: document.getElementById("analysisSeconds"),
-
-    instDrums: document.getElementById("instDrums"),
-    instBass: document.getElementById("instBass"),
-    instPad: document.getElementById("instPad"),
-    instLead: document.getElementById("instLead"),
-
-    entropySlider: document.getElementById("entropySlider"),
-    entropyValue: document.getElementById("entropyValue"),
-
-    autoEvolve: document.getElementById("autoEvolve"),
-    evolveState: document.getElementById("evolveState"),
-    evolveSeconds: document.getElementById("evolveSeconds"),
-    evolveSecondsValue: document.getElementById("evolveSecondsValue"),
-
-    startBtn: document.getElementById("startBtn"),
-    stopBtn: document.getElementById("stopBtn"),
-
-    statusText: document.getElementById("statusText"),
-    analysisStats: document.getElementById("analysisStats"),
-    mixStats: document.getElementById("mixStats"),
-
-    canvas: document.getElementById("viz"),
+  /******************************************************************
+   * State
+   ******************************************************************/
+
+  let audioCtx = null;
+  let decodedBuffer = null;
+  let analysis = null;
+
+  let feedSource = null;
+  let masterGain, originalFeedGain, musicGain;
+  let generatedBus, dryGain, wetGain, convolver;
+  let analyser, feedAnalyser;
+  let recorderNode, recorderSinkGain;
+
+  let schedulerId = null;
+  let animationId = null;
+  let startTime = 0;
+  let nextNoteTime = 0;
+
+  let capturedL = [];
+  let capturedR = [];
+  let captureEnabled = false;
+
+  let currentPitchState = null;
+  let currentRhythm = "1";
+  let currentTexture = "medium-bright-chirp";
+  let currentBass = "0";
+
+  const activeVoices = new Set();
+  let activePadNotes = 0;
+
+  const liveFeedColor = {
+    brightness: 0.35,
+    centroid: 1500,
+    energy: 0.0
   };
 
-  const app = new NatureComposerApp(ui);
+  let chains = {
+    pitch: new MarkovChain("multi-attribute-pitch", []),
+    rhythm: new MarkovChain("rhythm", ["0.5", "1", "1.5", "2"]),
+    texture: new MarkovChain("texture", ["sparse-warm-tonal", "medium-bright-chirp"]),
+    bass: new MarkovChain("bass", ["0", "0", "7"])
+  };
 
-  function updateEntropyUI(){
-    const v = Number(ui.entropySlider.value);
-    ui.entropyValue.textContent = v.toFixed(2);
-    app.entropyTarget = v;
-  }
-  ui.entropySlider.addEventListener("input", updateEntropyUI);
-  updateEntropyUI();
+  /******************************************************************
+   * UI
+   ******************************************************************/
 
-  function updateEvolveUI(){
-    ui.evolveState.textContent = ui.autoEvolve.value === "on" ? "on" : "off";
-  }
-  ui.autoEvolve.addEventListener("change", updateEvolveUI);
-  updateEvolveUI();
+  const sliderIds = ["entropy", "complexity", "tempo", "density", "drums", "bass", "synth"];
 
-  function updateEvolveSecondsUI(){
-    ui.evolveSecondsValue.textContent = String(ui.evolveSeconds.value);
-  }
-  ui.evolveSeconds.addEventListener("input", updateEvolveSecondsUI);
-  updateEvolveSecondsUI();
+  sliderIds.forEach(id => {
+    const el = $(id);
+    const val = $(id + "Val");
 
-  function autoRestartIfRunning(){
-    if (!app.running) return;
-    app.start().catch(err => {
+    const update = () => {
+      val.textContent = id === "tempo" ? `${el.value} BPM` : Number(el.value).toFixed(2);
+      updateLiveSoundControls();
+    };
+
+    el.addEventListener("input", update);
+    update();
+  });
+
+  $("file").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setStatus("Decoding audio…");
+      await ensureAudio();
+
+      const arrayBuffer = await file.arrayBuffer();
+      decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+
+      setStatus("Analyzing feed gestures: chirp contours, attacks, brightness, noisiness, rhythm, and source offsets…");
+      analysis = analyzeBuffer(decodedBuffer);
+      buildMarkovModels(analysis);
+
+      $("tempo").value = Math.round(analysis.estimatedTempo);
+      $("tempo").dispatchEvent(new Event("input"));
+
+      $("startBtn").disabled = false;
+      $("mRoot").textContent = noteNames[analysis.rootPc];
+      $("mGestures").textContent = String(analysis.pitchStates.length);
+
+      setStatus(
+        `Loaded ${file.name}. Found ${analysis.pitchStates.length} multi-attribute pitch gestures, ` +
+        `${analysis.onsets.length} attacks, center ${noteNames[analysis.rootPc]}, ` +
+        `${analysis.colorName} color. The complexity slider now morphs these feed gestures from raw source recreation into melodic song material.`
+      );
+    } catch (err) {
       console.error(err);
-      ui.statusText.textContent = `Error: ${err.message}`;
-    });
-  }
-  ui.natureSelect.addEventListener("change", autoRestartIfRunning);
-  ui.analysisSeconds.addEventListener("change", autoRestartIfRunning);
-  ui.instDrums.addEventListener("change", autoRestartIfRunning);
-  ui.instBass.addEventListener("change", autoRestartIfRunning);
-  ui.instPad.addEventListener("change", autoRestartIfRunning);
-  ui.instLead.addEventListener("change", autoRestartIfRunning);
-
-  ui.startBtn.addEventListener("click", async () => {
-    try{
-      await app.start();
-    }catch(err){
-      console.error(err);
-      ui.statusText.textContent = `Error: ${err.message}`;
+      setStatus("Could not decode this file. Try a WAV or another browser-supported audio file.");
     }
   });
 
-  ui.stopBtn.addEventListener("click", () => app.stop());
+  $("startBtn").addEventListener("click", start);
+  $("stopBtn").addEventListener("click", stop);
+  $("exportBtn").addEventListener("click", exportWav);
 
-  const canvas = ui.canvas;
-  const g = canvas.getContext("2d");
+  /******************************************************************
+   * Audio graph
+   ******************************************************************/
 
-  function fitCanvas(){
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.floor(rect.width * dpr);
-    canvas.height = Math.floor(rect.height * dpr);
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  async function ensureAudio() {
+    if (audioCtx) return;
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.88;
+
+    originalFeedGain = audioCtx.createGain();
+    originalFeedGain.gain.value = 1;
+
+    musicGain = audioCtx.createGain();
+    musicGain.gain.value = 0.0001;
+
+    generatedBus = audioCtx.createGain();
+    generatedBus.gain.value = 1;
+
+    dryGain = audioCtx.createGain();
+    dryGain.gain.value = 0.34;
+
+    wetGain = audioCtx.createGain();
+    wetGain.gain.value = 1.7;
+
+    convolver = audioCtx.createConvolver();
+    convolver.buffer = createReverbImpulse(audioCtx, 8.5, 4.1);
+
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.72;
+
+    feedAnalyser = audioCtx.createAnalyser();
+    feedAnalyser.fftSize = 2048;
+    feedAnalyser.smoothingTimeConstant = 0.78;
+
+    generatedBus.connect(dryGain).connect(musicGain);
+    generatedBus.connect(convolver).connect(wetGain).connect(musicGain);
+
+    originalFeedGain.connect(masterGain);
+    musicGain.connect(masterGain);
+
+    masterGain.connect(audioCtx.destination);
+    masterGain.connect(analyser);
+
+    setupRecorder();
+    updateLiveSoundControls();
   }
-  window.addEventListener("resize", fitCanvas);
-  fitCanvas();
 
-  const history = [];
-  const HISTORY_MAX = 320;
+  function createReverbImpulse(ctx, seconds, decay) {
+    const length = Math.floor(ctx.sampleRate * seconds);
+    const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
 
-  function draw(){
-    const w = canvas.getBoundingClientRect().width;
-    const h = canvas.getBoundingClientRect().height;
-
-    g.clearRect(0, 0, w, h);
-    g.fillStyle = "rgba(0,0,0,.18)";
-    g.fillRect(0, 0, w, h);
-
-    const e = app.entropyLive || 0;
-    history.push(e);
-    while (history.length > HISTORY_MAX) history.shift();
-
-    const barH = h * e;
-    const grd = g.createLinearGradient(0, h, 0, 0);
-    grd.addColorStop(0, "rgba(71,209,108,.15)");
-    grd.addColorStop(1, "rgba(71,209,108,.65)");
-    g.fillStyle = grd;
-    g.fillRect(0, h - barH, w, barH);
-
-    g.strokeStyle = "rgba(255,255,255,.20)";
-    g.lineWidth = 1;
-    g.strokeRect(0.5, 0.5, w - 1, h - 1);
-
-    g.beginPath();
-    for (let i = 0; i < history.length; i++){
-      const x = (i / Math.max(1, history.length - 1)) * w;
-      const y = h - history[i] * h;
-      if (i === 0) g.moveTo(x, y);
-      else g.lineTo(x, y);
-    }
-    g.strokeStyle = "rgba(58,160,255,.95)";
-    g.lineWidth = 2;
-    g.stroke();
-
-    g.fillStyle = "rgba(233,238,245,.92)";
-    g.font = "14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
-    g.fillText(`entropyLive: ${e.toFixed(2)}`, 12, 22);
-
-    g.strokeStyle = "rgba(255,255,255,.06)";
-    g.lineWidth = 1;
-    for (let i = 1; i < 5; i++){
-      const yy = (i / 5) * h;
-      g.beginPath();
-      g.moveTo(0, yy);
-      g.lineTo(w, yy);
-      g.stroke();
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        const t = i / length;
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, decay);
+      }
     }
 
-    requestAnimationFrame(draw);
+    return impulse;
   }
-  draw();
 
+  function setupRecorder() {
+    recorderNode = audioCtx.createScriptProcessor(4096, 2, 2);
+    recorderSinkGain = audioCtx.createGain();
+    recorderSinkGain.gain.value = 0;
+
+    recorderNode.onaudioprocess = (e) => {
+      if (!captureEnabled) return;
+
+      const l = e.inputBuffer.getChannelData(0);
+      const r = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : l;
+
+      capturedL.push(new Float32Array(l));
+      capturedR.push(new Float32Array(r));
+    };
+
+    masterGain.connect(recorderNode);
+    recorderNode.connect(recorderSinkGain).connect(audioCtx.destination);
+  }
+
+  /******************************************************************
+   * Multi-attribute feed analysis
+   ******************************************************************/
+
+  function analyzeBuffer(buffer) {
+    const sr = buffer.sampleRate;
+    const mono = mixToMono(buffer);
+
+    const N = 1024;
+    const hop = 256;
+    const totalFrames = Math.max(1, Math.floor((mono.length - N) / hop));
+    const fftStep = Math.max(1, Math.floor(totalFrames / 3000));
+
+    const window = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      window[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1));
+    }
+
+    const rmsFrames = new Float32Array(totalFrames);
+    const features = [];
+    let rmsSum = 0;
+
+    for (let f = 0; f < totalFrames; f++) {
+      const start = f * hop;
+      const rms = rmsOf(mono, start, N);
+      rmsFrames[f] = rms;
+      rmsSum += rms;
+
+      if (f % fftStep !== 0) continue;
+
+      const feat = analyzeSpectralFrame(mono, start, N, sr, window);
+      feat.frame = f;
+      feat.time = start / sr;
+      features.push(feat);
+    }
+
+    const avgRms = rmsSum / totalFrames;
+    const rmsMed = median([...rmsFrames]) || avgRms;
+
+    // Onset / attack candidates. Birds, drops, insects and leaves tend to show sharp local rises.
+    const onsets = [];
+    let lastOnsetTime = -999;
+
+    for (let i = 3; i < totalFrames; i++) {
+      const t = i * hop / sr;
+      const rise = rmsFrames[i] - rmsFrames[i - 2];
+      const localStrong = rmsFrames[i] > rmsMed * 1.18;
+      const sharpRise = rise > Math.max(avgRms * 0.10, rmsMed * 0.14);
+      const spaced = t - lastOnsetTime > 0.045;
+
+      if (localStrong && sharpRise && spaced) {
+        onsets.push({
+          time: t,
+          offset: clamp(t - 0.015, 0, Math.max(0, buffer.duration - 0.05)),
+          amp: rmsFrames[i],
+          frame: i
+        });
+        lastOnsetTime = t;
+      }
+    }
+
+    // If onsets are sparse, add bright/tonal feature peaks so sustained or distant birds still imprint the pitch chain.
+    if (onsets.length < 12) {
+      const candidates = features
+        .filter(f => f.confidence > 0.12)
+        .sort((a, b) => (b.amp * 0.5 + b.brightness * 0.4 + b.confidence * 0.4) -
+                        (a.amp * 0.5 + a.brightness * 0.4 + a.confidence * 0.4));
+
+      const used = new Set(onsets.map(o => Math.round(o.time * 10)));
+
+      for (const f of candidates) {
+        const key = Math.round(f.time * 10);
+        if (used.has(key)) continue;
+        used.add(key);
+
+        onsets.push({
+          time: f.time,
+          offset: clamp(f.time, 0, Math.max(0, buffer.duration - 0.05)),
+          amp: f.amp,
+          frame: f.frame
+        });
+
+        if (onsets.length >= 40) break;
+      }
+
+      onsets.sort((a, b) => a.time - b.time);
+    }
+
+    const centroids = features.map(f => f.centroid);
+    const brightnesses = features.map(f => f.brightness);
+    const flatnesses = features.map(f => f.flatness);
+    const midis = features
+      .filter(f => f.confidence > 0.16 && Number.isFinite(f.midi))
+      .map(f => Math.round(clamp(f.midi, 30, 105)));
+
+    const brightnessMed = median(brightnesses) || 0.25;
+    const flatnessMed = median(flatnesses) || 0.25;
+    const centroidMed = median(centroids) || 1400;
+    const rootPc = mode(midis.map(m => ((m % 12) + 12) % 12)) ?? 0;
+
+    const pitchStates = [];
+    const rhythmStates = [];
+    const textureStates = [];
+    const bassStates = [];
+
+    for (let i = 0; i < onsets.length; i++) {
+      const o = onsets[i];
+      const next = onsets[i + 1];
+
+      const f0 = nearestFeature(features, o.time);
+      const f1 = nearestFeature(features, o.time + 0.055);
+      const f2 = nearestFeature(features, o.time + 0.12);
+
+      const rawGap = next ? next.time - o.time : 0.45;
+      const dur = clamp(rawGap * 0.72, 0.055, 1.25);
+
+      const m0 = Number.isFinite(f0.midi) ? f0.midi : 60 + rootPc;
+      const m1 = Number.isFinite(f1.midi) ? f1.midi : m0;
+      const m2 = Number.isFinite(f2.midi) ? f2.midi : m1;
+
+      const contour = clamp(m2 - m0, -24, 24);
+      const attack = clamp((o.amp - (rmsFrames[Math.max(0, o.frame - 3)] || 0)) / Math.max(1e-6, avgRms * 2.2), 0, 1);
+      const brightness = clamp((f0.brightness + f1.brightness) * 0.5, 0, 1);
+      const noise = clamp((f0.flatness + f1.flatness) * 0.5, 0, 1);
+      const confidence = clamp((f0.confidence + f1.confidence) * 0.5, 0, 1);
+      const amp = clamp(o.amp / Math.max(1e-6, rmsMed * 3), 0, 1);
+
+      let shape = "tone";
+      if (attack > 0.35 && brightness > 0.38 && Math.abs(contour) > 1.2) shape = "chirp";
+      else if (attack > 0.45) shape = "pluck";
+      else if (noise > 0.42) shape = "noisy";
+      else if (dur > 0.65) shape = "sustain";
+
+      const rhythmBeats = clamp(rawGap / Math.max(0.1, 60 / 78), 0.25, 4);
+      const rhythmQuant = quantizeTo(rhythmBeats, [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]);
+
+      const density = amp > 0.62 ? "dense" : amp < 0.26 ? "sparse" : "medium";
+      const color = brightness > brightnessMed * 1.06 ? "bright" : "warm";
+      const texture = `${density}-${color}-${shape}`;
+
+      const state = {
+        // Pitch is deliberately not only scale degree. It is a gesture from the feed.
+        m0: clamp(m0, 30, 105),
+        m1: clamp(m1, 30, 105),
+        m2: clamp(m2, 30, 105),
+        contour,
+        dur,
+        gap: rhythmQuant,
+        amp,
+        brightness,
+        noise,
+        attack,
+        confidence,
+        shape,
+        texture,
+        offset: o.offset
+      };
+
+      pitchStates.push(encodePitchState(state));
+      rhythmStates.push(String(rhythmQuant));
+      textureStates.push(texture);
+
+      const bassDegree = bassDegreeForMidi(Math.round(m0), rootPc);
+      bassStates.push(String(bassDegree));
+    }
+
+    // Safety fallback.
+    if (!pitchStates.length) {
+      const fallback = encodePitchState({
+        m0: 60 + rootPc,
+        m1: 60 + rootPc,
+        m2: 67 + rootPc,
+        contour: 0,
+        dur: 0.35,
+        gap: 1,
+        amp: 0.5,
+        brightness: brightnessMed,
+        noise: flatnessMed,
+        attack: 0.2,
+        confidence: 0.2,
+        shape: "tone",
+        texture: "medium-warm-tone",
+        offset: 0
+      });
+      pitchStates.push(fallback);
+      rhythmStates.push("1");
+      textureStates.push("medium-warm-tone");
+      bassStates.push("0");
+    }
+
+    let estimatedTempo = 78;
+    if (onsets.length > 2) {
+      const intervals = [];
+      for (let i = 1; i < onsets.length; i++) {
+        const d = onsets[i].time - onsets[i - 1].time;
+        if (d > 0.06 && d < 4) intervals.push(d);
+      }
+
+      const medInterval = median(intervals) || 0.78;
+      estimatedTempo = clamp(60 / medInterval, 45, 150);
+      while (estimatedTempo > 130) estimatedTempo /= 2;
+      while (estimatedTempo < 50) estimatedTempo *= 2;
+    }
+
+    let colorName = "warm";
+    if (brightnessMed > 0.48 && flatnessMed > 0.32) colorName = "airy/noisy";
+    else if (brightnessMed > 0.45) colorName = "bright";
+    else if (flatnessMed > 0.38) colorName = "textured";
+    else if (centroidMed < 850) colorName = "dark/warm";
+
+    return {
+      duration: buffer.duration,
+      sampleRate: sr,
+      rootPc,
+      avgRms,
+      brightness: brightnessMed,
+      noisiness: flatnessMed,
+      centroidMed,
+      colorName,
+      estimatedTempo,
+      onsets,
+      pitchStates,
+      rhythmStates,
+      textureStates,
+      bassStates
+    };
+  }
+
+  function analyzeSpectralFrame(mono, start, N, sr, window) {
+    const real = new Float32Array(N);
+    const imag = new Float32Array(N);
+
+    for (let i = 0; i < N; i++) real[i] = (mono[start + i] || 0) * window[i];
+
+    fft(real, imag);
+
+    const minBin = Math.max(1, Math.floor(120 * N / sr));
+    const maxBin = Math.min(N / 2 - 1, Math.floor(9000 * N / sr));
+
+    let maxMag = 0;
+    let secondMag = 0;
+    let maxBinSeen = minBin;
+    let magSum = 0;
+    let weighted = 0;
+    let low = 0;
+    let high = 0;
+    let logSum = 0;
+    let count = 0;
+
+    for (let b = minBin; b <= maxBin; b++) {
+      const mag = Math.hypot(real[b], imag[b]) + 1e-12;
+      const freq = b * sr / N;
+
+      if (mag > maxMag) {
+        secondMag = maxMag;
+        maxMag = mag;
+        maxBinSeen = b;
+      } else if (mag > secondMag) {
+        secondMag = mag;
+      }
+
+      magSum += mag;
+      weighted += mag * freq;
+
+      if (freq < 1200) low += mag;
+      if (freq > 1800) high += mag;
+
+      logSum += Math.log(mag);
+      count++;
+    }
+
+    const freq = maxBinSeen * sr / N;
+    const midi = freqToMidi(freq);
+    const centroid = weighted / Math.max(1e-9, magSum);
+    const brightness = high / Math.max(1e-9, low + high);
+    const geometric = Math.exp(logSum / Math.max(1, count));
+    const arithmetic = magSum / Math.max(1, count);
+    const flatness = clamp(geometric / Math.max(1e-12, arithmetic), 0, 1);
+    const confidence = clamp((maxMag / Math.max(1e-9, magSum * 0.12)) * (1 - flatness * 0.65), 0, 1);
+
+    return {
+      freq,
+      midi,
+      centroid,
+      brightness,
+      flatness,
+      confidence,
+      amp: magSum / Math.max(1, count)
+    };
+  }
+
+  function nearestFeature(features, time) {
+    if (!features.length) {
+      return {
+        midi: 60,
+        brightness: 0.3,
+        flatness: 0.2,
+        confidence: 0.2,
+        centroid: 1000
+      };
+    }
+
+    let best = features[0];
+    let bestD = Math.abs(best.time - time);
+
+    for (let i = 1; i < features.length; i++) {
+      const d = Math.abs(features[i].time - time);
+      if (d < bestD) {
+        bestD = d;
+        best = features[i];
+      }
+    }
+
+    return best;
+  }
+
+  function mixToMono(buffer) {
+    const out = new Float32Array(buffer.length);
+
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      const d = buffer.getChannelData(ch);
+      for (let i = 0; i < out.length; i++) out[i] += d[i] / buffer.numberOfChannels;
+    }
+
+    return out;
+  }
+
+  function quantizeTo(v, choices) {
+    return choices.reduce((p, c) => Math.abs(c - v) < Math.abs(p - v) ? c : p, choices[0]);
+  }
+
+  function bassDegreeForMidi(midi, rootPc) {
+    const degree = ((midi - (48 + rootPc)) % 12 + 12) % 12;
+    if ([0, 1, 11].includes(degree)) return 0;
+    if ([7, 8].includes(degree)) return 7;
+    if ([4, 3].includes(degree)) return 4;
+    return 0;
+  }
+
+  function encodePitchState(s) {
+    // Compact encoded state:
+    // m0,m1,m2,dur,gap,amp,bright,noise,attack,confidence,shape,offset
+    return [
+      s.m0.toFixed(2),
+      s.m1.toFixed(2),
+      s.m2.toFixed(2),
+      s.dur.toFixed(3),
+      s.gap.toFixed(2),
+      s.amp.toFixed(3),
+      s.brightness.toFixed(3),
+      s.noise.toFixed(3),
+      s.attack.toFixed(3),
+      s.confidence.toFixed(3),
+      s.shape,
+      s.offset.toFixed(3)
+    ].join("|");
+  }
+
+  function decodePitchState(str) {
+    const p = String(str).split("|");
+
+    return {
+      m0: parseFloat(p[0]) || 60,
+      m1: parseFloat(p[1]) || 60,
+      m2: parseFloat(p[2]) || 60,
+      dur: parseFloat(p[3]) || 0.25,
+      gap: parseFloat(p[4]) || 1,
+      amp: parseFloat(p[5]) || 0.5,
+      brightness: parseFloat(p[6]) || 0.3,
+      noise: parseFloat(p[7]) || 0.2,
+      attack: parseFloat(p[8]) || 0.2,
+      confidence: parseFloat(p[9]) || 0.2,
+      shape: p[10] || "tone",
+      offset: parseFloat(p[11]) || 0
+    };
+  }
+
+  function buildMarkovModels(a) {
+    chains = {
+      pitch: new MarkovChain("multi-attribute-pitch", a.pitchStates),
+      rhythm: new MarkovChain("rhythm", a.rhythmStates),
+      texture: new MarkovChain("texture", a.textureStates),
+      bass: new MarkovChain("bass", a.bassStates)
+    };
+
+    chains.pitch.train(a.pitchStates);
+    chains.rhythm.train(a.rhythmStates);
+    chains.texture.train(a.textureStates);
+    chains.bass.train(a.bassStates);
+
+    currentPitchState = a.pitchStates[0];
+    currentRhythm = a.rhythmStates[0] || "1";
+    currentTexture = a.textureStates[0] || "medium-bright-chirp";
+    currentBass = a.bassStates[0] || "0";
+  }
+
+  /******************************************************************
+   * Transport
+   ******************************************************************/
+
+  async function start() {
+    if (!decodedBuffer) return;
+
+    await ensureAudio();
+    await audioCtx.resume();
+
+    stop(false);
+
+    feedSource = audioCtx.createBufferSource();
+    feedSource.buffer = decodedBuffer;
+    feedSource.loop = true;
+
+    feedSource.connect(originalFeedGain);
+    feedSource.connect(feedAnalyser);
+
+    feedSource.start();
+
+    capturedL = [];
+    capturedR = [];
+    captureEnabled = true;
+
+    startTime = audioCtx.currentTime;
+    nextNoteTime = audioCtx.currentTime + 0.2;
+    activePadNotes = 0;
+    activeVoices.clear();
+
+    originalFeedGain.gain.setValueAtTime(1, audioCtx.currentTime);
+    musicGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+
+    schedulerId = setInterval(schedule, 50);
+    draw();
+
+    $("startBtn").disabled = true;
+    $("stopBtn").disabled = false;
+    $("exportBtn").disabled = false;
+    $("liveDot").classList.add("live");
+    $("liveText").textContent = "Live";
+
+    setStatus("Running. The generated pitch chain is source-gesture based: grains + chirp contours + restrained harmony.");
+  }
+
+  function stop(updateUi = true) {
+    if (schedulerId) clearInterval(schedulerId);
+    schedulerId = null;
+
+    if (animationId) cancelAnimationFrame(animationId);
+    animationId = null;
+
+    if (feedSource) {
+      try { feedSource.stop(); } catch (_) {}
+      feedSource.disconnect();
+      feedSource = null;
+    }
+
+    captureEnabled = false;
+
+    if (audioCtx && musicGain) {
+      const t = audioCtx.currentTime;
+      musicGain.gain.cancelScheduledValues(t);
+      musicGain.gain.setTargetAtTime(0.0001, t, 0.08);
+    }
+
+    if (updateUi) {
+      $("startBtn").disabled = !decodedBuffer;
+      $("stopBtn").disabled = true;
+      $("liveDot").classList.remove("live");
+      $("liveText").textContent = "Idle";
+      setStatus("Stopped. You can restart or export the captured WAV from the previous run.");
+    }
+  }
+
+  function schedule() {
+    const ctxTime = audioCtx.currentTime;
+    const elapsed = ctxTime - startTime;
+    const evolution = clamp(elapsed / 125, 0, 1);
+
+    updateFeedColorFromAnalyser();
+    updateLiveSoundControls();
+
+    const entropy = clamp(Number($("entropy").value) + evolution * 0.25, 0, 0.9);
+
+    // Complexity is now interpreted as "melodicness":
+    // 0 = recreate feed/noise/gesture, 1 = turn feed gestures into melodic song material.
+    const melodicness = Number($("complexity").value);
+
+    const densityControl = Number($("density").value);
+    const synthLayer = Number($("synth").value);
+    const bassLayer = Number($("bass").value);
+    const drumLayer = Number($("drums").value);
+    const bpm = Number($("tempo").value);
+    const beat = 60 / bpm;
+
+    musicGain.gain.setTargetAtTime(evolution * 0.9, ctxTime, 2.2);
+    originalFeedGain.gain.setTargetAtTime(lerp(1, 0.66, evolution), ctxTime, 3.2);
+
+    while (nextNoteTime < ctxTime + 0.55) {
+      currentPitchState = chains.pitch.choose(currentPitchState, entropy);
+      currentRhythm = chains.rhythm.choose(currentRhythm, entropy * 0.55);
+      currentTexture = chains.texture.choose(currentTexture, entropy * 0.55);
+
+      const state = decodePitchState(currentPitchState);
+
+      const learnedGap = state.gap || parseFloat(currentRhythm) || 1;
+      const gap = clamp(learnedGap * beat, 0.06, 3.5);
+
+      const textureBoost =
+        currentTexture.includes("dense") ? 1.16 :
+        currentTexture.includes("sparse") ? 0.62 : 0.88;
+
+      const density = clamp(
+        (0.14 + densityControl * 0.9 + evolution * 0.18) * textureBoost,
+        0,
+        1.3
+      );
+
+      /**
+       * Complexity / melodicness routing:
+       *
+       * Low melodicness:
+       * - more source grains
+       * - sharper feed attacks
+       * - more noisy/bird-like chirp resynthesis
+       *
+       * High melodicness:
+       * - more quantized tones
+       * - clearer pitch centers
+       * - more harmonic pads
+       * - less raw grain dominance
+       */
+      const feedRecreationAmount = 1 - melodicness;
+
+      const feedGestureProbability =
+        synthLayer * density * lerp(1.15, 0.32, melodicness);
+
+      const chirpResynthesisProbability =
+        synthLayer * density * lerp(0.78, 0.48, melodicness);
+
+      const melodicToneProbability =
+        synthLayer * density * lerp(0.04, 0.72, melodicness);
+
+      const harmonicPadProbability =
+        synthLayer * density * lerp(0.04, 0.36, melodicness) * evolution;
+
+      // 1. Raw feed/source gesture layer.
+      // Dominant when slider is low.
+      if (decodedBuffer && Math.random() < feedGestureProbability) {
+        playFeedPitchGesture(nextNoteTime, state, {
+          entropy,
+          evolution,
+          synthLayer,
+          melodicness
+        });
+      }
+
+      // 2. Chirp/noise/contour resynthesis.
+      // At low values it follows the raw bird/noise contour.
+      // At high values it pulls toward quantized melodic pitches.
+      if (Math.random() < chirpResynthesisProbability) {
+        playChirpResynthesis(nextNoteTime + Math.random() * 0.025, state, {
+          entropy,
+          complexity: melodicness,
+          melodicness
+        });
+      }
+
+      // 3. Actual melodic song-like tone.
+      // This only becomes prominent when the slider is high.
+      if (evolution > 0.12 && Math.random() < melodicToneProbability) {
+        playMelodicSongTone(
+          nextNoteTime + Math.random() * gap * 0.22,
+          state,
+          beat * lerp(0.75, 2.5, melodicness)
+        );
+      }
+
+      // 4. Restrained harmonic pad.
+      // Also grows with melodicness.
+      if (evolution > 0.18 && Math.random() < harmonicPadProbability) {
+        playSparseHarmonicPad(
+          nextNoteTime,
+          state,
+          beat * lerp(3, 7, 1 - melodicness * 0.35)
+        );
+      }
+
+      // 5. Bass harmonic ground.
+      // Default is now stronger at 0.6, but density/probability still prevent overplaying.
+      if (Math.random() < bassLayer * density * lerp(0.25, 0.46, melodicness)) {
+        currentBass = chains.bass.choose(currentBass, entropy * 0.35);
+        const root = 36 + (analysis ? analysis.rootPc : 0);
+        playBass(nextNoteTime, root + parseInt(currentBass, 10), gap * 1.8);
+      }
+
+      // 6. Feed attacks/percussion.
+      // Stronger when recreating the feed, gentler when moving toward melodic song.
+      if (
+        decodedBuffer &&
+        analysis &&
+        analysis.onsets.length &&
+        Math.random() < drumLayer * density * lerp(0.58, 0.22, melodicness)
+      ) {
+        playFeedPercussion(nextNoteTime + Math.random() * beat * 0.09);
+      }
+
+      // 7. Environmental loop grains.
+      // Stronger on the feed/noise side.
+      if (
+        decodedBuffer &&
+        evolution > 0.28 &&
+        Math.random() < densityControl * evolution * lerp(0.18, 0.06, melodicness)
+      ) {
+        playFeedLoopGrain(nextNoteTime, gap * (2 + Math.random() * 3));
+      }
+
+      nextNoteTime += gap;
+    }
+
+    $("mEntropy").textContent = entropy.toFixed(2);
+    $("mEvolution").textContent = `${Math.round(evolution * 100)}%`;
+  }
+
+  /******************************************************************
+   * Live slider + live feed color
+   ******************************************************************/
+
+  function updateFeedColorFromAnalyser() {
+    if (!feedAnalyser || !audioCtx) return;
+
+    const data = new Uint8Array(feedAnalyser.frequencyBinCount);
+    feedAnalyser.getByteFrequencyData(data);
+
+    let sum = 0;
+    let weighted = 0;
+    let low = 0;
+    let high = 0;
+
+    for (let i = 1; i < data.length; i++) {
+      const v = data[i] / 255;
+      const freq = i * audioCtx.sampleRate / feedAnalyser.fftSize;
+
+      sum += v;
+      weighted += v * freq;
+
+      if (freq < 1200) low += v;
+      if (freq > 1800 && freq < 9000) high += v;
+    }
+
+    const centroid = sum > 0 ? weighted / sum : (analysis ? analysis.centroidMed : 1500);
+    const brightness = high / Math.max(1e-6, low + high);
+    const energy = sum / data.length;
+
+    liveFeedColor.centroid = lerp(liveFeedColor.centroid, centroid, 0.08);
+    liveFeedColor.brightness = lerp(liveFeedColor.brightness, brightness, 0.08);
+    liveFeedColor.energy = lerp(liveFeedColor.energy, energy, 0.10);
+  }
+
+  function updateLiveSoundControls() {
+    if (!audioCtx || !wetGain || !dryGain || !generatedBus) return;
+
+    const t = audioCtx.currentTime;
+    const entropy = Number($("entropy").value || 0.22);
+    const density = Number($("density").value || 0.44);
+    const synth = Number($("synth").value || 0.82);
+    const complexity = Number($("complexity").value || 0.25);
+
+    generatedBus.gain.setTargetAtTime(lerp(0.55, 1.08, density) * lerp(0.8, 1.15, synth), t, 0.08);
+    wetGain.gain.setTargetAtTime(lerp(1.15, 2.35, density) * synth, t, 0.08);
+    dryGain.gain.setTargetAtTime(lerp(0.22, 0.44, 1 - entropy) * synth, t, 0.08);
+
+    const sourceBrightness = clamp(((analysis ? analysis.brightness : 0.3) + liveFeedColor.brightness) * 0.5, 0, 1);
+    const targetCutoff = clamp(lerp(520, 5200, sourceBrightness) * lerp(0.82, 1.25, complexity), 300, 7200);
+
+    activeVoices.forEach(v => {
+      if (v.filter) v.filter.frequency.setTargetAtTime(targetCutoff * (v.cutoffMult || 1), t, 0.11);
+      if (v.gain && v.baseGain != null) v.gain.gain.setTargetAtTime(v.baseGain * synth * (v.layerGain || 1), t, 0.11);
+    });
+  }
+
+  /******************************************************************
+   * Synthesis and source-imprinted rendering
+   ******************************************************************/
+
+  function getMelodicness() {
+    return Number($("complexity").value || 0);
+  }
+
+  function quantizeMidiForMelody(midi) {
+    return quantizeMidiToPentatonic(midi, analysis ? analysis.rootPc : 0);
+  }
+
+  function blendMidiTowardMelody(rawMidi, melodicness) {
+    const quantized = quantizeMidiForMelody(rawMidi);
+    return lerp(rawMidi, quantized, melodicness);
+  }
+
+  function preserveOrMelodizeDuration(rawDuration, melodicness, beat = 0.75) {
+    // Low melodicness keeps irregular feed chirp timing.
+    // High melodicness pulls durations toward musical note lengths.
+    const musicalDurations = [0.25, 0.5, 0.75, 1, 1.5, 2];
+    const rawBeats = rawDuration / Math.max(0.001, beat);
+    const musicalBeats = quantizeTo(rawBeats, musicalDurations);
+    return lerp(rawDuration, musicalBeats * beat, melodicness);
+  }
+
+  function playFeedPitchGesture(time, state, opts) {
+    const melodicness = opts.melodicness ?? getMelodicness();
+    const feedRecreationAmount = 1 - melodicness;
+
+    const src = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    const rawDuration = clamp(state.dur, 0.045, 1.4);
+    const duration = clamp(
+      preserveOrMelodizeDuration(rawDuration, melodicness, 60 / Number($("tempo").value)),
+      0.045,
+      1.6
+    );
+
+    // Low melodicness preserves original source rate.
+    // High melodicness allows subtle pitch alignment without erasing the source.
+    const jitter = (Math.random() * 2 - 1) * opts.entropy * lerp(0.055, 0.018, melodicness);
+    src.buffer = decodedBuffer;
+    src.playbackRate.setValueAtTime(clamp(1 + jitter, 0.76, 1.28), time);
+
+    const sourceFreq = midiToFreq(state.m0);
+    const melodicFreq = midiToFreq(quantizeMidiForMelody(state.m0));
+    const targetFreq = lerp(sourceFreq, melodicFreq, melodicness * 0.45);
+
+    if (state.shape === "chirp" || state.brightness > 0.42) {
+      filter.type = "bandpass";
+      filter.frequency.setValueAtTime(clamp(targetFreq * 1.15, 650, 8500), time);
+
+      // Low complexity keeps a wider, more natural chirp.
+      // High complexity focuses the pitch slightly.
+      filter.Q.setValueAtTime(lerp(1.0, 4.4, state.confidence * melodicness + 0.2), time);
+    } else if (state.shape === "noisy") {
+      filter.type = "highpass";
+      filter.frequency.setValueAtTime(lerp(160, 1500, state.brightness), time);
+      filter.Q.setValueAtTime(0.65, time);
+    } else {
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(lerp(1000, 5200, state.brightness), time);
+      filter.Q.setValueAtTime(0.7, time);
+    }
+
+    // Raw grain is strongest when recreating the feed.
+    const peak =
+      lerp(0.12, 0.045, melodicness) *
+      lerp(0.65, 1.25, state.amp) *
+      Number($("synth").value);
+
+    const attackTime = lerp(0.035, 0.004, state.attack);
+
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.linearRampToValueAtTime(peak, time + attackTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+
+    const voiceRecord = {
+      filter,
+      gain,
+      baseGain: peak,
+      cutoffMult: 1,
+      layerGain: 1
+    };
+
+    activeVoices.add(voiceRecord);
+
+    src.connect(filter).connect(gain).connect(generatedBus);
+    src.start(
+      time,
+      clamp(state.offset, 0, Math.max(0, decodedBuffer.duration - 0.05)),
+      duration
+    );
+    src.stop(time + duration + 0.1);
+
+    setTimeout(() => {
+      activeVoices.delete(voiceRecord);
+    }, Math.max(20, (time + duration + 0.2 - audioCtx.currentTime) * 1000));
+  }
+
+  function playChirpResynthesis(time, state, opts) {
+    const melodicness = opts.melodicness ?? getMelodicness();
+    const feedRecreationAmount = 1 - melodicness;
+
+    const beat = 60 / Number($("tempo").value);
+    const rawDur = clamp(state.dur * lerp(0.65, 1.15, melodicness), 0.05, 0.95);
+    const dur = clamp(preserveOrMelodizeDuration(rawDur, melodicness, beat), 0.05, 1.25);
+
+    const osc = audioCtx.createOscillator();
+    const mod = audioCtx.createOscillator();
+    const modGain = audioCtx.createGain();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    // Raw contour from the feed.
+    const rawM0 = state.m0;
+    const rawM1 = state.m1;
+    const rawM2 = state.m2;
+
+    // Melodic version: quantized but still derived from feed contour.
+    const m0 = blendMidiTowardMelody(rawM0, melodicness);
+    const m1 = blendMidiTowardMelody(rawM1, melodicness);
+    const m2 = blendMidiTowardMelody(rawM2, melodicness);
+
+    const f0 = midiToFreq(clamp(m0, 30, 105));
+    const f1 = midiToFreq(clamp(m1, 30, 105));
+    const f2 = midiToFreq(clamp(m2, 30, 105));
+
+    // Low melodicness: more bird/noise-like.
+    // High melodicness: clearer sine/triangle melodic tone.
+    osc.type =
+      melodicness > 0.72 ? "sine" :
+      state.noise > 0.35 ? "triangle" :
+      "sine";
+
+    osc.frequency.setValueAtTime(clamp(f0, 80, 9000), time);
+    osc.frequency.exponentialRampToValueAtTime(clamp(f1, 80, 9000), time + dur * 0.45);
+    osc.frequency.exponentialRampToValueAtTime(clamp(f2, 80, 9000), time + dur);
+
+    // Modulation/noisy roughness fades out as melodicness increases.
+    mod.type = "sine";
+    mod.frequency.setValueAtTime(
+      clamp(f0 * lerp(1.6, 3.4, state.brightness), 100, 12000),
+      time
+    );
+
+    modGain.gain.setValueAtTime(
+      lerp(
+        lerp(4, 38, state.noise * 0.7 + state.attack * 0.3),
+        1.5,
+        melodicness
+      ),
+      time
+    );
+
+    filter.type = state.shape === "chirp" && melodicness < 0.72 ? "bandpass" : "lowpass";
+
+    filter.frequency.setValueAtTime(
+      clamp(
+        lerp(
+          f0 * lerp(1.4, 4.5, state.brightness),
+          f0 * lerp(2.0, 5.5, state.brightness),
+          melodicness
+        ),
+        450,
+        8500
+      ),
+      time
+    );
+
+    filter.Q.setValueAtTime(
+      lerp(
+        lerp(1.1, 5.0, state.confidence),
+        0.85,
+        melodicness
+      ),
+      time
+    );
+
+    const baseGain =
+      lerp(0.026 + state.amp * 0.05, 0.035 + state.amp * 0.035, melodicness) *
+      Number($("synth").value);
+
+    const attackTime = lerp(0.04, 0.006, state.attack);
+
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.linearRampToValueAtTime(baseGain, time + attackTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+
+    mod.connect(modGain).connect(osc.frequency);
+    osc.connect(filter).connect(gain).connect(generatedBus);
+
+    const voiceRecord = {
+      filter,
+      gain,
+      baseGain,
+      cutoffMult: 1,
+      layerGain: 1
+    };
+
+    activeVoices.add(voiceRecord);
+
+    osc.start(time);
+    mod.start(time);
+    osc.stop(time + dur + 0.08);
+    mod.stop(time + dur + 0.08);
+
+    // Noise bursts are intentionally strongest when slider is low.
+    if ((state.noise > 0.28 || state.shape === "noisy") && feedRecreationAmount > 0.15) {
+      playTextureNoise(time, dur, {
+        ...state,
+        noise: state.noise * feedRecreationAmount,
+        brightness: state.brightness
+      });
+    }
+
+    setTimeout(() => {
+      activeVoices.delete(voiceRecord);
+    }, Math.max(20, (time + dur + 0.15 - audioCtx.currentTime) * 1000));
+  }
+
+  function playTextureNoise(time, dur, state) {
+    const len = Math.floor(audioCtx.sampleRate * Math.min(dur + 0.15, 1.2));
+    const b = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const d = b.getChannelData(0);
+
+    for (let i = 0; i < len; i++) {
+      const prev = i > 0 ? d[i - 1] : 0;
+      d[i] = prev * lerp(0.68, 0.91, 1 - state.brightness) + (Math.random() * 2 - 1) * 0.22;
+    }
+
+    const src = audioCtx.createBufferSource();
+    const filt = audioCtx.createBiquadFilter();
+    const gain = audioCtx.createGain();
+
+    src.buffer = b;
+    filt.type = "bandpass";
+    filt.frequency.setValueAtTime(clamp(midiToFreq(state.m0) * lerp(1.1, 3.0, state.brightness), 450, 8000), time);
+    filt.Q.setValueAtTime(lerp(0.6, 2.2, state.attack), time);
+
+    const baseGain = 0.004 + state.noise * 0.018;
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.linearRampToValueAtTime(baseGain * Number($("synth").value), time + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+
+    src.connect(filt).connect(gain).connect(generatedBus);
+    src.start(time);
+    src.stop(time + dur + 0.05);
+  }
+
+  function playSparseHarmonicPad(time, state, duration) {
+    const complexity = Number($("complexity").value);
+
+    // Quantize only the background harmony, not the chirp gestures.
+    const center = quantizeMidiToPentatonic(state.m0, analysis ? analysis.rootPc : 0);
+    const chord = complexity < 0.55 ? [center - 12, center - 5] : [center - 12, center - 5, center];
+
+    if (activePadNotes + chord.length > 3) return;
+    activePadNotes += chord.length;
+
+    chord.forEach((m, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(midiToFreq(clamp(m, 34, 74)), time);
+      osc.detune.setValueAtTime((i - 1) * 2.5, time);
+
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(lerp(550, 2400, state.brightness), time);
+      filter.Q.value = 0.45;
+
+      const baseGain = 0.025 / Math.sqrt(chord.length);
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.linearRampToValueAtTime(baseGain * Number($("synth").value), time + 1.1);
+      gain.gain.setTargetAtTime(0.0001, time + duration * 0.68, duration * 0.18);
+
+      osc.connect(filter).connect(gain).connect(generatedBus);
+
+      const voiceRecord = {
+        filter,
+        gain,
+        baseGain,
+        cutoffMult: 0.8 + i * 0.15,
+        layerGain: 1
+      };
+
+      activeVoices.add(voiceRecord);
+
+      osc.start(time);
+      osc.stop(time + duration + 2);
+
+      setTimeout(() => activeVoices.delete(voiceRecord), Math.max(20, (time + duration + 2 - audioCtx.currentTime) * 1000));
+    });
+
+    setTimeout(() => {
+      activePadNotes = Math.max(0, activePadNotes - chord.length);
+    }, Math.max(20, (time + duration + 1 - audioCtx.currentTime) * 1000));
+  }
+
+  function playMelodicSongTone(time, state, duration) {
+    const melodicness = getMelodicness();
+    if (melodicness < 0.08) return;
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    // Still derived from the feed gesture, but pulled into a musical scale.
+    const m0 = blendMidiTowardMelody(state.m0, melodicness);
+    const m1 = blendMidiTowardMelody(state.m1, melodicness);
+    const m2 = blendMidiTowardMelody(state.m2, melodicness);
+
+    const f0 = midiToFreq(clamp(m0, 42, 92));
+    const f1 = midiToFreq(clamp(m1, 42, 92));
+    const f2 = midiToFreq(clamp(m2, 42, 92));
+
+    const dur = clamp(duration, 0.12, 2.8);
+
+    osc.type = melodicness > 0.65 ? "sine" : "triangle";
+    osc.frequency.setValueAtTime(f0, time);
+
+    if (Math.abs(m2 - m0) > 1.5) {
+      osc.frequency.exponentialRampToValueAtTime(f1, time + dur * 0.45);
+      osc.frequency.exponentialRampToValueAtTime(f2, time + dur);
+    } else {
+      osc.frequency.setValueAtTime(f0, time);
+    }
+
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(
+      clamp(lerp(1200, 5200, state.brightness) * lerp(0.8, 1.2, melodicness), 700, 6500),
+      time
+    );
+    filter.Q.setValueAtTime(0.75, time);
+
+    const baseGain =
+      (0.018 + 0.038 * melodicness) *
+      lerp(0.7, 1.2, state.amp) *
+      Number($("synth").value);
+
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.linearRampToValueAtTime(baseGain, time + lerp(0.05, 0.015, melodicness));
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+
+    osc.connect(filter).connect(gain).connect(generatedBus);
+
+    const voiceRecord = {
+      filter,
+      gain,
+      baseGain,
+      cutoffMult: 1,
+      layerGain: 1
+    };
+
+    activeVoices.add(voiceRecord);
+
+    osc.start(time);
+    osc.stop(time + dur + 0.08);
+
+    setTimeout(() => {
+      activeVoices.delete(voiceRecord);
+    }, Math.max(20, (time + dur + 0.15 - audioCtx.currentTime) * 1000));
+  }
+
+  function quantizeMidiToPentatonic(midi, rootPc) {
+    const scale = [0, 2, 4, 7, 9];
+    let best = midi;
+    let bestDist = Infinity;
+
+    for (let oct = 2; oct <= 7; oct++) {
+      for (const deg of scale) {
+        const c = oct * 12 + rootPc + deg;
+        const d = Math.abs(c - midi);
+        if (d < bestDist) {
+          bestDist = d;
+          best = c;
+        }
+      }
+    }
+
+    return clamp(best, 40, 76);
+  }
+
+  function playBass(time, midi, duration) {
+    const osc = audioCtx.createOscillator();
+    const sub = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    const freq = midiToFreq(clamp(midi, 30, 52));
+
+    osc.type = "triangle";
+    sub.type = "sine";
+    osc.frequency.setValueAtTime(freq, time);
+    sub.frequency.setValueAtTime(freq / 2, time);
+
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(lerp(160, 320, liveFeedColor.brightness), time);
+    filter.Q.value = 0.55;
+
+    const baseGain = 0.065 * Number($("bass").value);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.linearRampToValueAtTime(baseGain, time + 0.22);
+    gain.gain.setTargetAtTime(0.0001, time + duration * 0.62, duration * 0.18);
+
+    osc.connect(filter);
+    sub.connect(filter);
+    filter.connect(gain).connect(generatedBus);
+
+    const voiceRecord = { filter, gain, baseGain, cutoffMult: 0.28, layerGain: Number($("bass").value) };
+    activeVoices.add(voiceRecord);
+
+    osc.start(time);
+    sub.start(time);
+    osc.stop(time + duration + 1);
+    sub.stop(time + duration + 1);
+
+    setTimeout(() => activeVoices.delete(voiceRecord), Math.max(20, (time + duration + 1 - audioCtx.currentTime) * 1000));
+  }
+
+  function playFeedPercussion(time) {
+    if (!decodedBuffer || !analysis || !analysis.onsets.length) return;
+
+    const onset = analysis.onsets[Math.floor(Math.random() * analysis.onsets.length)];
+    const src = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    src.buffer = decodedBuffer;
+    src.playbackRate.value = [0.82, 1, 1.08, 1.22][Math.floor(Math.random() * 4)];
+
+    filter.type = "bandpass";
+    filter.frequency.value = lerp(900, 6800, clamp((analysis.brightness + liveFeedColor.brightness) * 0.5, 0, 1));
+    filter.Q.value = 1.8;
+
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.linearRampToValueAtTime(0.09 * Number($("drums").value), time + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.16 + Math.random() * 0.14);
+
+    src.connect(filter).connect(gain).connect(generatedBus);
+    src.start(time, onset.offset, 0.07 + Math.random() * 0.16);
+    src.stop(time + 0.42);
+  }
+
+  function playFeedLoopGrain(time, duration) {
+    if (!decodedBuffer) return;
+
+    const src = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    const offset = Math.random() * Math.max(0, decodedBuffer.duration - 3);
+    const sliceDur = clamp(duration * lerp(0.24, 1.1, Math.random()), 0.45, 5.5);
+    const rate = [0.5, 0.75, 1, 1.25, 1.5][Math.floor(Math.random() * 5)];
+
+    src.buffer = decodedBuffer;
+    src.playbackRate.value = rate;
+
+    filter.type = "lowpass";
+    filter.frequency.value = clamp(lerp(650, 4200, liveFeedColor.brightness), 450, 5200);
+
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.linearRampToValueAtTime(0.04 * Number($("density").value), time + 0.36);
+    gain.gain.setTargetAtTime(0.0001, time + sliceDur * 0.68, sliceDur * 0.16);
+
+    src.connect(filter).connect(gain).connect(generatedBus);
+    src.start(time, offset, sliceDur);
+    src.stop(time + sliceDur + 1);
+  }
+
+  /******************************************************************
+   * Visualization
+   ******************************************************************/
+
+  function draw() {
+    const bars = $("bars");
+    const barsCtx = bars.getContext("2d");
+    const spec = $("spec");
+    const specCtx = spec.getContext("2d");
+    const evo = $("evo");
+    const evoCtx = evo.getContext("2d");
+    const freqData = new Uint8Array(analyser.frequencyBinCount);
+
+    const render = () => {
+      animationId = requestAnimationFrame(render);
+      analyser.getByteFrequencyData(freqData);
+
+      drawBars(barsCtx, bars, freqData);
+      drawSpectrogram(specCtx, spec, freqData);
+      drawEvolution(evoCtx, evo);
+    };
+
+    render();
+  }
+
+  function drawBars(ctx, canvas, data) {
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const grad = ctx.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, "#70f6c7");
+    grad.addColorStop(0.55, "#91a8ff");
+    grad.addColorStop(1, "#ffd36e");
+
+    const bars = 96;
+    const step = Math.max(1, Math.floor(data.length / bars));
+    const bw = w / bars;
+
+    for (let i = 0; i < bars; i++) {
+      let sum = 0;
+      for (let j = 0; j < step; j++) sum += data[i * step + j] || 0;
+      const v = sum / step / 255;
+      const bh = Math.pow(v, 1.45) * h;
+
+      ctx.fillStyle = grad;
+      ctx.fillRect(i * bw, h - bh, Math.max(1, bw - 2), bh);
+    }
+
+    ctx.fillStyle = "rgba(234,255,248,.75)";
+    ctx.font = "13px system-ui";
+    ctx.fillText("Live frequency distribution", 16, 24);
+  }
+
+  function drawSpectrogram(ctx, canvas, data) {
+    const w = canvas.width;
+    const h = canvas.height;
+
+    const img = ctx.getImageData(1, 0, w - 1, h);
+    ctx.putImageData(img, 0, 0);
+
+    for (let y = 0; y < h; y++) {
+      const idx = Math.floor(Math.pow(1 - y / h, 2.18) * (data.length - 1));
+      const v = data[idx] / 255;
+
+      const r = Math.floor(18 + v * 236);
+      const g = Math.floor(34 + v * 190);
+      const b = Math.floor(44 + Math.pow(v, .65) * 210);
+
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(w - 1, y, 1, 1);
+    }
+
+    ctx.fillStyle = "rgba(234,255,248,.75)";
+    ctx.font = "13px system-ui";
+    ctx.fillText("Scrolling spectrogram", 16, 24);
+  }
+
+  function drawEvolution(ctx, canvas) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const elapsed = audioCtx ? audioCtx.currentTime - startTime : 0;
+    const evolution = clamp(elapsed / 125, 0, 1);
+    const entropy = clamp(Number($("entropy").value) + evolution * 0.25, 0, 0.9);
+
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.strokeStyle = "rgba(255,255,255,.12)";
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i < 6; i++) {
+      const y = i * h / 5;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = "#70f6c7";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, h - 14);
+    ctx.bezierCurveTo(w * .25, h - 14, w * .55, h * (1 - evolution), w * evolution, h * (1 - evolution));
+    ctx.stroke();
+
+    ctx.strokeStyle = "#ffd36e";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, h * (1 - entropy));
+    ctx.lineTo(w, h * (1 - entropy));
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(234,255,248,.80)";
+    ctx.font = "13px system-ui";
+    ctx.fillText("Evolution curve", 16, 24);
+
+    ctx.fillStyle = "#ffd36e";
+    ctx.fillText("entropy", w - 72, h * (1 - entropy) - 6);
+  }
+
+  /******************************************************************
+   * WAV export
+   ******************************************************************/
+
+  function exportWav() {
+    if (!capturedL.length) {
+      setStatus("Nothing captured yet. Click Start and let the piece play before exporting.");
+      return;
+    }
+
+    const left = flatten(capturedL);
+    const right = flatten(capturedR);
+    const wav = encodeWav(left, right, audioCtx.sampleRate);
+    const blob = new Blob([wav], { type: "audio/wav" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `nature-markov-feed-imprint-${nowString()}.wav`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    setStatus(`Exported ${formatSeconds(left.length / audioCtx.sampleRate)} WAV from the live master mix.`);
+  }
+
+  function flatten(chunks) {
+    const len = chunks.reduce((n, c) => n + c.length, 0);
+    const out = new Float32Array(len);
+    let offset = 0;
+
+    for (const c of chunks) {
+      out.set(c, offset);
+      offset += c.length;
+    }
+
+    return out;
+  }
+
+  function encodeWav(left, right, sampleRate) {
+    const frames = Math.min(left.length, right.length);
+    const channels = 2;
+    const bytesPerSample = 2;
+    const blockAlign = channels * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + frames * blockAlign);
+    const view = new DataView(buffer);
+
+    writeString(view, 0, "RIFF");
+    view.setUint32(4, 36 + frames * blockAlign, true);
+    writeString(view, 8, "WAVE");
+    writeString(view, 12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, channels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeString(view, 36, "data");
+    view.setUint32(40, frames * blockAlign, true);
+
+    let offset = 44;
+
+    for (let i = 0; i < frames; i++) {
+      const l = clamp(left[i], -1, 1);
+      const r = clamp(right[i], -1, 1);
+
+      view.setInt16(offset, l < 0 ? l * 0x8000 : l * 0x7fff, true);
+      offset += 2;
+
+      view.setInt16(offset, r < 0 ? r * 0x8000 : r * 0x7fff, true);
+      offset += 2;
+    }
+
+    return buffer;
+  }
+
+  function writeString(view, offset, str) {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  }
+
+  function formatSeconds(sec) {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function setStatus(msg) {
+    $("status").textContent = msg;
+  }
+
+  window.addEventListener("beforeunload", () => {
+    try { stop(false); } catch (_) {}
+  });
 })();
 </script>
 </body>
