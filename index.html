@@ -298,11 +298,11 @@
 
         <select id="presetSound">
             <option value="">Choose a sound:</option>
-            <option value="rain.wav">Rain</option>
-            <option value="ocean.wav">Ocean Waves</option>
-            <option value="forest.wav">Forest</option>
-            <option value="birds.wav">Birds</option>
-            <option value="wind.wav">Wind</option>
+            <option value="rain.mp3">Rain</option>
+            <option value="ocean.mp3">Ocean Waves</option>
+            <option value="forest.mp3">Forest</option>
+            <option value="birds.mp3">Birds</option>
+            <option value="wind.mp3">Wind</option>
         </select>
         </div>
 
@@ -670,34 +670,58 @@
 
     $("presetSound").addEventListener("change", async (e) => {
         const fileName = e.target.value;
+
         if (!fileName) return;
 
         try {
-            setStatus(`Loading ${fileName} from sounds folder…`);
+            setStatus(`Loading ${fileName}...`);
 
             await ensureAudio();
 
-            const response = await fetch(`sounds/${fileName}`);
+            const response = await fetch(`./sounds/${fileName}`);
+
+            if (!response.ok) {
+                throw new Error("File not found");
+            }
+
             const arrayBuffer = await response.arrayBuffer();
 
-            decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                convolver.buffer = await buildImpulseFromSource(decodedBuffer);
+            decodedBuffer =
+                await audioCtx.decodeAudioData(arrayBuffer);
+
+            convolver.buffer =
+                await buildImpulseFromSource(decodedBuffer);
 
             analysis = analyzeBuffer(decodedBuffer);
+
             buildMarkovModels(analysis);
 
-            $("tempo").value = Math.round(analysis.estimatedTempo);
-            $("tempo").dispatchEvent(new Event("input"));
+            $("tempo").value =
+                Math.round(analysis.estimatedTempo);
+
+            $("tempo").dispatchEvent(
+                new Event("input")
+            );
 
             $("startBtn").disabled = false;
 
+            $("mRoot").textContent =
+                noteNames[analysis.rootPc];
+
+            $("mGestures").textContent =
+                analysis.pitchStates.length;
+
             setStatus(
-            `Loaded ${fileName}. Feed gestures and spectral fingerprints extracted successfully.`
+                `Loaded ${fileName}. ` +
+                `${analysis.pitchStates.length} gestures extracted.`
             );
 
         } catch (err) {
             console.error(err);
-            setStatus("Could not load built-in sound.");
+
+            setStatus(
+                `Could not load ${fileName}.`
+            );
         }
     });
 
