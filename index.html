@@ -1496,10 +1496,10 @@
 
       // 5. Bass harmonic ground.
       // Default is now stronger at 0.6, but density/probability still prevent overplaying.
-      if (Math.random() < bassLayer * density * lerp(1.2, 1.5, melodicness)) {
+      if (Math.random() < bassLayer * density * lerp(1.2, 1.4, melodicness)) { // Slightly reduced probability
         currentBass = chains.bass.choose(currentBass, entropy * 0.35);
         const root = 36 + (analysis ? analysis.rootPc : 0);
-        playBass(nextNoteTime, root + parseInt(currentBass, 10), gap * 0.6);
+        playBass(nextNoteTime, root + parseInt(currentBass, 10), gap * 0.7); // Balanced duration
       }
 
       // 6. Feed attacks/percussion.
@@ -1509,12 +1509,12 @@
         decodedBuffer &&
         analysis &&
         analysis.onsets.length &&
-        Math.random() < drumLayer * density * lerp(1.5, 0.8, melodicness))
+        Math.random() < drumLayer * density * lerp(1.0, 0.6, melodicness)) // Reduced probability
     {
         // Use rhythm chain to choose timing for more structured drums
         const rhythmChoice = chains.rhythm ? chains.rhythm.choose(currentRhythm, entropy * 0.2) : "1";
         const rhythmMult = parseFloat(rhythmChoice) || 1;
-        const timingOffset = (rhythmMult - 1) * beat * 0.5; // Adjust timing based on rhythm
+        const timingOffset = (rhythmMult - 1) * beat * 0.2; // Smaller timing adjustment
         playFeedPercussion(nextNoteTime + timingOffset);
       }
 
@@ -1652,7 +1652,7 @@
 
       // Low complexity keeps a wider, more natural chirp.
       // High complexity focuses the pitch slightly.
-      filter.Q.setValueAtTime(lerp(1.0, 4.4, state.confidence * melodicness + 0.2), time);
+      filter.Q.setValueAtTime(lerp(0.8, 2.5, state.confidence * melodicness + 0.2), time); // Reduced Q range
     } else if (state.shape === "noisy") {
       filter.type = "highpass";
       filter.frequency.setValueAtTime(lerp(160, 1500, state.brightness), time);
@@ -1665,8 +1665,8 @@
 
     // Raw grain is strongest when recreating the feed.
     const peak =
-        lerp(0.24, 0.08, melodicness) *
-        lerp(0.65, 1.25, state.amp) *
+        lerp(0.15, 0.05, melodicness) * // Reduced peak gain
+        lerp(0.5, 1.0, state.amp) * // Reduced amplitude multiplier
         Number($("synth").value);
 
     const attackTime = lerp(0.012, 0.002, state.attack);
@@ -1747,11 +1747,12 @@
 
     const fmIndex = Number($("fmIndex").value);
 
+    // Reduced modulation for cleaner sound
     modGain.gain.setValueAtTime(
-        fmIndex *
+        fmIndex * 0.3 * // Reduced FM index multiplier
             lerp(
-                lerp(2, 12, state.noise),
-                0.8,
+                lerp(1, 6, state.noise), // Reduced modulation range
+                0.3, // Reduced base modulation
                 melodicness
             )
         ,
@@ -1763,27 +1764,27 @@
     filter.frequency.setValueAtTime(
       clamp(
         lerp(
-          f0 * lerp(1.4, 4.5, state.brightness),
-          f0 * lerp(2.0, 5.5, state.brightness),
+          f0 * lerp(1.2, 3.0, state.brightness), // Reduced frequency multiplier
+          f0 * lerp(1.5, 3.5, state.brightness), // Reduced frequency multiplier
           melodicness
         ),
-        450,
-        8500
+        300, // Lower minimum frequency
+        6000 // Lower maximum frequency
       ),
       time
     );
 
     filter.Q.setValueAtTime(
       lerp(
-        lerp(1.1, 5.0, state.confidence),
-        0.85,
+        lerp(0.8, 2.5, state.confidence), // Reduced Q range
+        0.6, // Reduced base Q
         melodicness
       ),
       time
     );
 
     const baseGain =
-      lerp(0.026 + state.amp * 0.05, 0.035 + state.amp * 0.035, melodicness) *
+      lerp(0.015 + state.amp * 0.03, 0.02 + state.amp * 0.02, melodicness) * // Reduced gain
       Number($("synth").value);
 
     const attackTime = lerp(0.04, 0.006, state.attack);
@@ -2016,42 +2017,51 @@
 
     const freq = midiToFreq(clamp(midi, 30, 52));
 
-    // More melodic: vary waveform based on feed characteristics
-    const waveforms = ['triangle', 'sawtooth', 'square'];
-    const waveform = waveforms[Math.floor(Math.random() * waveforms.length)];
-    osc.type = waveform;
+    // Clean sine waves for harmonic bass
+    osc.type = "sine";
     sub.type = "sine";
     
     osc.frequency.setValueAtTime(freq, time);
-    sub.frequency.setValueAtTime(freq / 2, time);
+    sub.frequency.setValueAtTime(freq / 2, time); // Octave below for richness
 
-    // Add some pitch variation for melody
-    if (Math.random() < 0.3) {
-      const targetFreq = freq * Math.pow(2, (Math.random() * 0.1 - 0.05)); // slight detune
-      osc.frequency.exponentialRampToValueAtTime(targetFreq, time + duration * 0.5);
+    // Minimal pitch variation
+    if (Math.random() < 0.1) {
+      const targetFreq = freq * Math.pow(2, (Math.random() * 0.02 - 0.01)); // very subtle detune
+      osc.frequency.exponentialRampToValueAtTime(targetFreq, time + duration * 0.7);
     }
 
     filter.type = "lowpass";
     filter.frequency.setValueAtTime(
-        lerp(600, 2800, liveFeedColor.brightness),
+        lerp(300, 1200, liveFeedColor.brightness), // More controlled frequency range
         time
     );
-    filter.Q.value = 0.45;
+    filter.Q.value = 0.5; // Less resonance
 
     const baseGain =
-        0.35 *
+        0.25 * // Reduced gain for cleaner sound
         Number($("bass").value) *
-        lerp(0.9, 1.3, 0.5);
+        lerp(0.8, 1.2, 0.5);
 
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(baseGain, time + 0.02);
+    gain.gain.exponentialRampToValueAtTime(baseGain, time + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
 
-    osc.connect(filter);
-    sub.connect(filter);
+    // Simple mix
+    const oscGain = audioCtx.createGain();
+    const subGain = audioCtx.createGain();
+    
+    oscGain.gain.value = 0.7;
+    subGain.gain.value = 0.5;
+    
+    osc.connect(oscGain);
+    sub.connect(subGain);
+    
+    oscGain.connect(filter);
+    subGain.connect(filter);
+    
     filter.connect(gain).connect(generatedBus);
     const bassDry = audioCtx.createGain();
-    bassDry.gain.value = 1.2;
+    bassDry.gain.value = 1.0; // Reduced dry gain
     gain.connect(bassDry).connect(dryGain);
 
     const voiceRecord = { filter, gain, baseGain, cutoffMult: 0.28, layerGain: Number($("bass").value) };
@@ -2059,10 +2069,10 @@
 
     osc.start(time);
     sub.start(time);
-    osc.stop(time + duration + 0.5);
-    sub.stop(time + duration + 0.5);
+    osc.stop(time + duration + 0.3);
+    sub.stop(time + duration + 0.3);
 
-    setTimeout(() => activeVoices.delete(voiceRecord), Math.max(20, (time + duration + 0.5 - audioCtx.currentTime) * 1000));
+    setTimeout(() => activeVoices.delete(voiceRecord), Math.max(20, (time + duration + 0.3 - audioCtx.currentTime) * 1000));
   }
 
   function playFeedPercussion(time) {
@@ -2095,11 +2105,11 @@
     filter.frequency.value = lerp(900, 6800, clamp((analysis.brightness + liveFeedColor.brightness) * 0.5, 0, 1));
     filter.Q.value = 0.5;
 
-    // Quicker and more melodic gain envelope
-    const drumGain = 0.4 * Number($("drums").value) * lerp(1.2, 0.8, getMelodicness());
+    // Balanced gain envelope for clearer drums
+    const drumGain = 0.3 * Number($("drums").value) * lerp(1.0, 0.7, getMelodicness()); // Reduced gain
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(drumGain, time + 0.001);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.15 + Math.random() * 0.1); // Shorter decay
+    gain.gain.exponentialRampToValueAtTime(drumGain, time + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.12 + Math.random() * 0.08); // Shorter decay
 
     src.connect(filter).connect(gain).connect(generatedBus);
     src.start(time, onset.offset, 0.05 + Math.random() * 0.08); // Shorter grain
