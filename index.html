@@ -280,7 +280,7 @@
       padding: 28px 32px;
       backdrop-filter: blur(16px);
       box-shadow: 0 20px 70px rgba(0,0,0,.24);
-      max-width: 860px;
+      max-width: 1200px;
     }
 
     .blog h3 {
@@ -474,7 +474,7 @@
     </p>
 
     <p>
-      As for synthesis, we layered several WebAudio voices on top of each other. The main melodic voice plays pentatonic-quantized tones using paired oscillators (a sine and a slightly detuned triangle) with note durations snapped to musical beat subdivisions derived from the tempo slider. A harmonic pad layer uses triangle oscillators tuned to chord tones below the melody. A chirp resynthesis layer plays shorter oscillator bursts with pitch contours loosely following the feed gesture, especially useful for recreating bird/forest feed sounds to ensure that all attributes of the sound are accounted for. A granular layer samples short grains directly from the original recording at the detected onset offsets, so the actual audio of the nature sound shows through at key moments. Finally, a bass layer plays sine-wave notes at scale degrees inferred from the recording's root pitch class, with an octave sub-oscillator for weight.
+      As for synthesis, we layered several WebAudio voices on top of each other. The main melodic voice plays pentatonic-quantized tones using paired oscillators (a sine and a slightly detuned triangle) with note durations snapped to musical beat subdivisions derived from the tempo slider. A harmonic pad layer uses triangle oscillators tuned to chord tones below the melody. A chirp resynthesis layer plays shorter oscillator bursts with pitch contours loosely following the feed gesture, which is especially useful for recreating bird/forest feed sounds to ensure that all attributes of the sound are accounted for. A granular layer samples short grains directly from the original recording at the detected onset offsets, so the actual audio of the nature sound shows through at key moments. Finally, a bass layer plays sine-wave notes at scale degrees inferred from the recording's root pitch class, with an octave sub-oscillator for weight.
     </p>
 
     <p>
