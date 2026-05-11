@@ -427,6 +427,30 @@
       <canvas id="entropyCanvas" width="900" height="100"></canvas>
     </section>
   </div>
+    <div class="blog">
+    <h3>
+        Final Project: Nature → Feed-Imprinted Markov Music Blog Post
+    </h3>
+    <p>
+        For our final project, we created a feed-imprinted Markov music generator that analyzes the multi-attribute gestures of a nature sound recording (like birds chirping or ocean waves) and uses that analysis to generate new music. 
+        The motivation of this project was to algorithmically create music that incorporates nature sounds to be used for meditation or mindfulness. 
+        The generator treats pitch as a full feed gesture, preserving chirp contour, register, attack, brightness, noisiness, duration, spacing, and the original source snippet offset. 
+        This way, the generated sound retains attributes of the original sound, such as bird-like chirps and timbral traces instead of becoming a completely unrelated melodic song.
+    </p>
+
+        The generator uses Markov chains to model the transitions between different pitch states, rhythmic patterns, textures, and bass notes.
+        There are multiple sliders that allow the user to control the entropy/randomness, complexity (original sound vs melodic song), tempo, texture density, feed percussion, bass presence, synth layer, and FM modulation index.
+        This allows for a wide range of user customization and exploration of the generated music, from more chaotic and feed-like to more structured and melodic.
+    <p>
+        The project also includes real-time analysis and visualization of the feed and generated music, showing metrics like entropy, evolution, center pitch, and pitch gestures.
+        We incorporated FM synthesis, filters (lowpass, highpass, and bandpass), and other WebAudio concepts from class to create a rich and dynamic sound that evolves based on the input nature recording and user controls.
+        We also added dynamic reverb and spatialization to enhance the immersive quality of the generated music.
+        Though not covered in class, we added granular synthesis techniques to further manipulate the feed and create more complex textures in the generated music. 
+        Additionally, we extended the Markov chain structure we learned in class to become multi-dimensional, and used entropy techniques that were not necessarily covered.
+        Furthermore, we implemented a more complex and nuanced feed analysis that captures multiple attributes of the sound, rather than just pitch or rhythm, to create a more interesting feed imprint on the generated music.
+    </p>
+  </div>
+
 </main>
 
 <script>
