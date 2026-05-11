@@ -272,19 +272,49 @@
         border: 1px solid rgba(255,255,255,.1);
     }
 
+    .blog {
+      margin-top: 28px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 22px;
+      padding: 28px 32px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 70px rgba(0,0,0,.24);
+      max-width: 860px;
+    }
+
+    .blog h3 {
+      font-size: 1.25rem;
+      letter-spacing: -.03em;
+      color: var(--accent);
+      margin: 0 0 20px;
+    }
+
+    .blog p {
+      color: var(--muted);
+      line-height: 1.75;
+      font-size: .95rem;
+      margin: 0 0 16px;
+    }
+
+    .blog p:last-child { margin-bottom: 0; }
+
+    .blog code {
+      font-family: ui-monospace, monospace;
+      font-size: .85rem;
+      background: rgba(255,255,255,.08);
+      padding: 1px 5px;
+      border-radius: 5px;
+      color: var(--accent2);
+    }
+
   </style>
 </head>
 
 <body>
 <main>
   <header>
-    <h1>Nature → Feed-Imprinted Markov Music</h1>
-    <p class="subtitle">
-      This version treats pitch as a full feed gesture, not just a note. For bird recordings, the pitch Markov chain
-      preserves chirp contour, register, attack, brightness, noisiness, duration, spacing, and the original source
-      snippet offset. Generated sound should retain bird-like chirps and timbral traces instead of becoming an unrelated
-      melodic song.
-    </p>
+    <h1>Nature-Based Markov Music Generator</h1>
   </header>
 
   <div class="grid">
@@ -389,7 +419,7 @@
 
       <p class="footer-note">
         The melody slider is a continuum: low values preserve feed gestures, chirps, attacks, grains, and noise;
-        high values transform those same gestures into more quantized, song-like melodic material.
+        high values transform those same gestures into more song-like melodic material.
       </p>
     </section>
 
@@ -427,27 +457,40 @@
       <canvas id="entropyCanvas" width="900" height="100"></canvas>
     </section>
   </div>
-    <div class="blog">
-    <h3>
-        Final Project: Nature → Feed-Imprinted Markov Music Blog Post
-    </h3>
+
+  <div class="blog">
+    <h3>Final Project: Nature → Feed-Imprinted Markov Music</h3>
+
     <p>
-        For our final project, we created a feed-imprinted Markov music generator that analyzes the multi-attribute gestures of a nature sound recording (like birds chirping or ocean waves) and uses that analysis to generate new music. 
-        The motivation of this project was to algorithmically create music that incorporates nature sounds to be used for meditation or mindfulness. 
-        The generator treats pitch as a full feed gesture, preserving chirp contour, register, attack, brightness, noisiness, duration, spacing, and the original source snippet offset. 
-        This way, the generated sound retains attributes of the original sound, such as bird-like chirps and timbral traces instead of becoming a completely unrelated melodic song.
+      For our final project we built a browser-based generative music system that takes any nature recording (e.g. birds chirping, rain, ocean waves, wind, forest sounds, or any inputted audio file) and uses it as the raw material for an evolving musical composition. The core idea was that the character of the natural sound should shape everything about the generated music: its rhythm, pitch, timbre, and texture. We wanted it to feel less like "music playing over a nature recording" and more like the nature recording slowly transforming into music.
     </p>
 
-        The generator uses Markov chains to model the transitions between different pitch states, rhythmic patterns, textures, and bass notes.
-        There are multiple sliders that allow the user to control the entropy/randomness, complexity (original sound vs melodic song), tempo, texture density, feed percussion, bass presence, synth layer, and FM modulation index.
-        This allows for a wide range of user customization and exploration of the generated music, from more chaotic and feed-like to more structured and melodic.
     <p>
-        The project also includes real-time analysis and visualization of the feed and generated music, showing metrics like entropy, evolution, center pitch, and pitch gestures.
-        We incorporated FM synthesis, filters (lowpass, highpass, and bandpass), and other WebAudio concepts from class to create a rich and dynamic sound that evolves based on the input nature recording and user controls.
-        We also added dynamic reverb and spatialization to enhance the immersive quality of the generated music.
-        Though not covered in class, we added granular synthesis techniques to further manipulate the feed and create more complex textures in the generated music. 
-        Additionally, we extended the Markov chain structure we learned in class to become multi-dimensional, and used entropy techniques that were not necessarily covered.
-        Furthermore, we implemented a more complex and nuanced feed analysis that captures multiple attributes of the sound, rather than just pitch or rhythm, to create a more interesting feed imprint on the generated music.
+      For audio feature extraction, we ran a full spectral analysis on every frame of the uploaded file, computing RMS energy, spectral centroid, spectral flatness (noisiness vs. tonality of a sound), and dominant pitch via FFT peak detection. Because of this, longer sounds take longer to analyze. From these frame-level features we then detected onsets: moments where the RMS rises sharply above the local average. Each onset becomes a gesture, or a snapshot of the sound at that moment encoded with its start pitch, mid pitch, end pitch, contour direction, duration, inter-onset gap, amplitude, brightness, noisiness, attack speed, and the original time offset.
+    </p>
+
+    <p>
+      We then trained four separate Markov chains on the sequence of gestures extracted from the recording: one for pitch states (the full multi-attribute encoding), one for rhythmic gaps (quantized to musical beat subdivisions), one for texture classes (combinations of density, brightness, and shape like "dense-bright-chirp" or "sparse-warm-sustain"), and one for bass scale degrees derived from the recording's estimated tonal center. This was a direct extension of the first-order Markov chains we covered in class. The key difference between these is that each state carries a whole vector of attributes rather than just a single pitch value. Transitions between states are weighted by how often they appeared in the original recording, and the entropy slider controls a temperature parameter that makes the chain more or less likely to deviate from the learned transitions.
+    </p>
+
+    <p>
+      As for synthesis, we layered several WebAudio voices on top of each other. The main melodic voice plays pentatonic-quantized tones using paired oscillators (a sine and a slightly detuned triangle) with note durations snapped to musical beat subdivisions derived from the tempo slider. A harmonic pad layer uses triangle oscillators tuned to chord tones below the melody. A chirp resynthesis layer plays shorter oscillator bursts with pitch contours loosely following the feed gesture, especially useful for recreating bird/forest feed sounds to ensure that all attributes of the sound are accounted for. A granular layer samples short grains directly from the original recording at the detected onset offsets, so the actual audio of the nature sound shows through at key moments. Finally, a bass layer plays sine-wave notes at scale degrees inferred from the recording's root pitch class, with an octave sub-oscillator for weight.
+    </p>
+
+    <p>
+      The sliders give real-time control over all of this. Entropy adjusts the Markov chain temperature and adds timing jitter to the note spacing. For example, low entropy produces tight, repeating patterns while high entropy produces loose, unpredictable ones. The complexity slider ("Original ↔ Melodic") shifts the oscillator waveform from triangle toward sine, moves the melody into higher octaves, and lengthens note durations from gesture-length to phrase-length. Tempo directly controls the beat unit that all note durations and gaps are quantized to. Density gates how many voices fire per beat. We then have the FM slider. This was originally wired to FM modulation depth, which we ultimately removed because it was generating "alien" like noises was repurposed to control filter brightness across all active voices, so it now functions as a timbre/tone control. The synth, bass, and drums sliders independently scale the gain of those layers.
+    </p>
+
+    <p>
+      For the visualization, we built three real-time diagrams. We added a frequency bar graph, a scrolling spectrogram, and an evolution curve that shows how far the piece has progressed from its starting state. We also display a live entropy graph that tracks how the randomness parameter has been moving over time, which is color-coded based on average entropy values.
+    </p>
+
+    <p>
+      Some issues that we ran into included getting the gain staging right across the full signal chain (generatedBus → dryGain/wetGain → musicGain → masterGain), because small changes in one gain node compound with all the others and it was easy for us to end up with either clipping or barely audible noises. Envelope design was also tricky, as we encountered a lot of clipping during testing, but ultimately switching to linearRampToValueAtTime helped with most of the clipping. Additionally, the FM synthesis we wanted to implement produced metallic, alien-like sounds at the modulation depths we needed, so we removed it from the chirp layer and repurposed to timbre control rather than try to tame it further.
+    </p>
+
+    <p>
+      Overall, we're pleased with the result of this project. Uploading a bird or nature recording and hearing those specific chirp rhythms and pitches gradually emerge as a melody that still feels connected to the source is satisfying for practicing mindfulness and meditation. If we had more time, we'd explore longer Markov chain orders so the generated sequences have more large-scale structure, and potentially add a proper reverb impulse response instead of the feed-derived convolver approximation we ended up with.
     </p>
   </div>
 
@@ -805,13 +848,13 @@
     musicGain.gain.value = 0.0001;
 
     generatedBus = audioCtx.createGain();
-    generatedBus.gain.value = 1;
+    generatedBus.gain.value = 1.0;
 
     dryGain = audioCtx.createGain();
-    dryGain.gain.value = 0.34;
+    dryGain.gain.value = 0.5;
 
     wetGain = audioCtx.createGain();
-    wetGain.gain.value = 1.7;
+    wetGain.gain.value = 0.4;
 
     convolver = audioCtx.createConvolver();
     // convolver.buffer = createReverbImpulse(audioCtx, 8.5, 4.1);
@@ -1353,8 +1396,10 @@
     activePadNotes = 0;
     activeVoices.clear();
 
-    originalFeedGain.gain.setValueAtTime(1, audioCtx.currentTime);
-    musicGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    originalFeedGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+    originalFeedGain.gain.linearRampToValueAtTime(0.7, audioCtx.currentTime + 0.5);
+    musicGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    musicGain.gain.linearRampToValueAtTime(0.7, audioCtx.currentTime + 0.5);
 
     schedulerId = setInterval(schedule, 50);
     draw();
@@ -1401,7 +1446,7 @@
   function schedule() {
     const ctxTime = audioCtx.currentTime;
     const elapsed = ctxTime - startTime;
-    const evolution = clamp(elapsed / 125, 0, 1);
+    const evolution = clamp(elapsed / 30, 0, 1);
 
     updateFeedColorFromAnalyser();
     updateLiveSoundControls();
@@ -1425,8 +1470,7 @@
     const bpm = Number($("tempo").value);
     const beat = 60 / bpm;
 
-    musicGain.gain.setTargetAtTime(evolution * 0.9, ctxTime, 2.2);
-    originalFeedGain.gain.setTargetAtTime(lerp(1, 0.82, evolution), ctxTime, 3.2);
+    // Gains are set by start() crossfade ramp — do not override here
 
     while (nextNoteTime < ctxTime + 0.55) {
       currentPitchState = chains.pitch.choose(currentPitchState, entropy);
@@ -1436,7 +1480,9 @@
       const state = decodePitchState(currentPitchState);
 
       const learnedGap = state.gap || parseFloat(currentRhythm) || 1;
-      const gap = clamp(learnedGap * beat, 0.06, 3.5);
+      // entropy adds timing jitter — high entropy = looser, more random spacing
+      const jitterMult = 1 + (Math.random() * 2 - 1) * entropy * 0.4;
+      const gap = clamp(learnedGap * beat * jitterMult, 0.06, beat * 4);
 
       const textureBoost =
         currentTexture.includes("dense") ? 1.16 :
@@ -1464,17 +1510,12 @@
        */
       const feedRecreationAmount = 1 - melodicness;
 
-      const feedGestureProbability =
-        synthLayer * density * lerp(1.8, 0.55, melodicness);
-
-      const chirpResynthesisProbability =
-        synthLayer * density * lerp(0.78, 0.48, melodicness);
-
-      const melodicToneProbability =
-        synthLayer * density * lerp(0.01, 0.35, melodicness);
-
-      const harmonicPadProbability =
-        synthLayer * density * lerp(0.04, 0.36, melodicness) * evolution;
+      // ── density gates all layers — at 0 nothing fires, at 1 everything fires ──
+      // ── melody is the primary voice; other layers are sparse texture ─────────
+      const melodicToneProbability    = synthLayer * lerp(0.5, 0.85, melodicness) * clamp(density * 1.4, 0.3, 1.0);
+      const harmonicPadProbability    = synthLayer * lerp(0.15, 0.5, melodicness)  * density;
+      const chirpResynthesisProbability = synthLayer * lerp(0.35, 0.05, melodicness) * density;
+      const feedGestureProbability    = synthLayer * lerp(0.4,  0.05, melodicness) * density;
 
       // 1. Raw feed/source gesture layer.
       // Dominant when slider is low.
@@ -1500,7 +1541,7 @@
 
       // 3. Actual melodic song-like tone.
       // This only becomes prominent when the slider is high.
-      if (evolution > 0.12 && Math.random() < melodicToneProbability) {
+      if (Math.random() < melodicToneProbability) {
         playMelodicSongTone(
           nextNoteTime + Math.random() * gap * 0.22,
           state,
@@ -1510,7 +1551,7 @@
 
       // 4. Restrained harmonic pad.
       // Also grows with melodicness.
-      if (evolution > 0.18 && Math.random() < harmonicPadProbability) {
+      if (Math.random() < harmonicPadProbability) {
         playSparseHarmonicPad(
           nextNoteTime,
           state,
@@ -1523,7 +1564,9 @@
       if (Math.random() < bassLayer * density * lerp(1.2, 1.4, melodicness)) { // Slightly reduced probability
         currentBass = chains.bass.choose(currentBass, entropy * 0.35);
         const root = 36 + (analysis ? analysis.rootPc : 0);
-        playBass(nextNoteTime, root + parseInt(currentBass, 10), gap * 0.7); // Balanced duration
+        // bass note length: 1 beat at low complexity, 2 beats at high
+        const bassDur = beat * lerp(0.75, 2.0, melodicness);
+        playBass(nextNoteTime, root + parseInt(currentBass, 10), bassDur);
       }
 
       // 6. Feed attacks/percussion.
@@ -1603,16 +1646,23 @@
     const synth = Number($("synth").value || 0.82);
     const complexity = Number($("complexity").value || 0.25);
 
-    generatedBus.gain.setTargetAtTime(lerp(0.55, 1.08, density) * lerp(0.8, 1.15, synth), t, 0.08);
-    wetGain.gain.setTargetAtTime(lerp(0.12, 0.45, density) * synth, t, 0.08);
-    dryGain.gain.setTargetAtTime(lerp(0.22, 0.44, 1 - entropy) * synth, t, 0.08);
+    const fmIndex = Number($("fmIndex").value || 70);
 
+    // generatedBus scales with density + synth
+    generatedBus.gain.setTargetAtTime(lerp(0.6, 1.0, density) * lerp(0.7, 1.0, synth), t, 0.18);
+    // wetGain (reverb send) scales with density
+    wetGain.gain.setTargetAtTime(lerp(0.1, 0.3, density) * synth, t, 0.18);
+    // dryGain scales inversely with entropy (more entropy = more washed)
+    dryGain.gain.setTargetAtTime(lerp(0.35, 0.6, 1 - entropy) * synth, t, 0.18);
+
+    // fmIndex now controls filter brightness (0=dark/muffled, 150=bright/open)
+    const brightnessMult = lerp(0.4, 1.6, fmIndex / 150);
     const sourceBrightness = clamp(((analysis ? analysis.brightness : 0.3) + liveFeedColor.brightness) * 0.5, 0, 1);
-    const targetCutoff = clamp(lerp(520, 5200, sourceBrightness) * lerp(0.82, 1.25, complexity), 300, 7200);
+    const targetCutoff = clamp(lerp(600, 4000, sourceBrightness) * brightnessMult * lerp(0.8, 1.2, complexity), 300, 6000);
 
     activeVoices.forEach(v => {
-      if (v.filter) v.filter.frequency.setTargetAtTime(targetCutoff * (v.cutoffMult || 1), t, 0.11);
-      if (v.gain && v.baseGain != null) v.gain.gain.setTargetAtTime(v.baseGain * synth * (v.layerGain || 1), t, 0.11);
+      if (v.filter) v.filter.frequency.setTargetAtTime(targetCutoff * (v.cutoffMult || 1), t, 0.2);
+      // Do NOT touch v.gain — it is managed by per-note envelopes
     });
   }
 
@@ -1630,7 +1680,7 @@
 
   function blendMidiTowardMelody(rawMidi, melodicness) {
     const quantized = quantizeMidiForMelody(rawMidi);
-    return lerp(rawMidi, quantized, melodicness * 0.35);
+    return lerp(rawMidi, quantized, melodicness);
   }
 
   function preserveOrMelodizeDuration(rawDuration, melodicness, beat = 0.75) {
@@ -1666,26 +1716,14 @@
 
     src.playbackRate.setValueAtTime(clamp(sourceRate + jitter, 0.6, 1.5), time);
 
-    const sourceFreq = midiToFreq(state.m0);
+    const sourceFreq = midiToFreq(clamp(state.m0, 48, 84));
     const melodicFreq = midiToFreq(quantizeMidiForMelody(state.m0));
     const targetFreq = lerp(sourceFreq, melodicFreq, melodicness * 0.45);
 
-    if (state.shape === "chirp" || state.brightness > 0.42) {
-      filter.type = "bandpass";
-      filter.frequency.setValueAtTime(clamp(targetFreq * 1.15, 650, 8500), time);
-
-      // Low complexity keeps a wider, more natural chirp.
-      // High complexity focuses the pitch slightly.
-      filter.Q.setValueAtTime(lerp(0.8, 2.5, state.confidence * melodicness + 0.2), time); // Reduced Q range
-    } else if (state.shape === "noisy") {
-      filter.type = "highpass";
-      filter.frequency.setValueAtTime(lerp(160, 1500, state.brightness), time);
-      filter.Q.setValueAtTime(0.65, time);
-    } else {
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(lerp(1000, 5200, state.brightness), time);
-      filter.Q.setValueAtTime(0.7, time);
-    }
+    // Always lowpass — bandpass on high-freq carriers caused shrieking
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(clamp(targetFreq * 2.0, 400, 3500), time);
+    filter.Q.setValueAtTime(0.6, time);
 
     // Raw grain is strongest when recreating the feed.
     const peak =
@@ -1693,11 +1731,13 @@
         lerp(0.5, 1.0, state.amp) * // Reduced amplitude multiplier
         Number($("synth").value);
 
-    const attackTime = lerp(0.012, 0.002, state.attack);
+    const attackTime = Math.max(0.03, lerp(0.05, 0.03, state.attack));
 
-    gain.gain.setValueAtTime(0.0001, time);
+    const releaseF = 0.07;
+    gain.gain.setValueAtTime(0, time);
     gain.gain.linearRampToValueAtTime(peak, time + attackTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    gain.gain.setValueAtTime(peak, time + Math.max(attackTime + 0.01, duration - releaseF));
+    gain.gain.linearRampToValueAtTime(0, time + duration);
 
     const voiceRecord = {
       filter,
@@ -1724,139 +1764,59 @@
 
   function playChirpResynthesis(time, state, opts) {
     const melodicness = opts.melodicness ?? getMelodicness();
-    const feedRecreationAmount = 1 - melodicness;
 
     const beat = 60 / Number($("tempo").value);
-    const rawDur = clamp(state.dur * lerp(0.65, 1.15, melodicness), 0.05, 0.95);
-    const dur = clamp(preserveOrMelodizeDuration(rawDur, melodicness, beat), 0.05, 1.25);
+    const rawDur = clamp(state.dur * lerp(0.65, 1.15, melodicness), 0.08, 0.95);
+    const dur = clamp(preserveOrMelodizeDuration(rawDur, melodicness, beat), 0.08, 1.25);
 
     const osc = audioCtx.createOscillator();
-    const mod = audioCtx.createOscillator();
-    const modGain = audioCtx.createGain();
     const gain = audioCtx.createGain();
     const filter = audioCtx.createBiquadFilter();
 
-    // Raw contour from the feed.
-    const rawM0 = state.m0;
-    const rawM1 = state.m1;
-    const rawM2 = state.m2;
+    // Quantize pitches fully toward pentatonic — eliminates wild inter-note jumps
+    const m0 = blendMidiTowardMelody(state.m0, melodicness);
+    const m1 = blendMidiTowardMelody(state.m1, melodicness);
 
-    // Melodic version: quantized but still derived from feed contour.
-    const m0 = blendMidiTowardMelody(rawM0, melodicness);
-    const m1 = blendMidiTowardMelody(rawM1, melodicness);
-    const m2 = blendMidiTowardMelody(rawM2, melodicness);
+    // Clamp tightly to a musical range — no ultrasonic or sub-bass tones
+    const f0 = midiToFreq(clamp(m0, 48, 84));
+    const f1 = midiToFreq(clamp(m1, 48, 84));
 
-    const f0 = midiToFreq(clamp(m0, 30, 105));
-    const f1 = midiToFreq(clamp(m1, 30, 105));
-    const f2 = midiToFreq(clamp(m2, 30, 105));
+    osc.type = melodicness > 0.5 ? "sine" : (state.noise > 0.35 ? "triangle" : "sine");
 
-    playSourceGrain(time, state);
-    // Low melodicness: more bird/noise-like.
-    // High melodicness: clearer sine/triangle melodic tone.
-    osc.type =
-      melodicness > 0.72 ? "sine" :
-      state.noise > 0.35 ? "triangle" :
-      "sine";
+    osc.frequency.setValueAtTime(f0, time);
+    // Only sweep to f1 at the midpoint — no wild sweep all the way to note end
+    if (Math.abs(m1 - m0) > 0.5 && Math.abs(m1 - m0) < 7) {
+      osc.frequency.exponentialRampToValueAtTime(f1, time + dur * 0.5);
+    }
 
-    osc.frequency.setValueAtTime(clamp(f0, 80, 9000), time);
-    osc.frequency.exponentialRampToValueAtTime(clamp(f1, 80, 9000), time + dur * 0.45);
-    osc.frequency.exponentialRampToValueAtTime(clamp(f2, 80, 9000), time + dur);
-
-    // Modulation/noisy roughness fades out as melodicness increases.
-    mod.type = "sine";
-    mod.frequency.setValueAtTime(
-      clamp(f0 * lerp(1.6, 3.4, state.brightness), 100, 12000),
-      time
-    );
-
-    const fmIndex = Number($("fmIndex").value);
-
-    // Reduced modulation for cleaner sound
-    modGain.gain.setValueAtTime(
-        fmIndex * 0.3 * // Reduced FM index multiplier
-            lerp(
-                lerp(1, 6, state.noise), // Reduced modulation range
-                0.3, // Reduced base modulation
-                melodicness
-            )
-        ,
-        time
-    );
-
-    filter.type = state.shape === "chirp" && melodicness < 0.72 ? "bandpass" : "lowpass";
-
-    filter.frequency.setValueAtTime(
-      clamp(
-        lerp(
-          f0 * lerp(1.2, 3.0, state.brightness), // Reduced frequency multiplier
-          f0 * lerp(1.5, 3.5, state.brightness), // Reduced frequency multiplier
-          melodicness
-        ),
-        300, // Lower minimum frequency
-        6000 // Lower maximum frequency
-      ),
-      time
-    );
-
-    filter.Q.setValueAtTime(
-      lerp(
-        lerp(0.8, 2.5, state.confidence), // Reduced Q range
-        0.6, // Reduced base Q
-        melodicness
-      ),
-      time
-    );
+    // No FM modulation — was the primary source of alien sounds
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(clamp(f0 * 2.5, 600, 5000), time);
+    filter.Q.setValueAtTime(0.6, time);
 
     const baseGain =
-      lerp(0.015 + state.amp * 0.03, 0.02 + state.amp * 0.02, melodicness) * // Reduced gain
+      lerp(0.04 + state.amp * 0.04, 0.06 + state.amp * 0.03, melodicness) *
       Number($("synth").value);
 
-    const attackTime = lerp(0.04, 0.006, state.attack);
+    const attackTime = Math.max(0.03, lerp(0.06, 0.03, state.attack));
+    const releaseTime = 0.1;
 
-    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.setValueAtTime(0, time);
     gain.gain.linearRampToValueAtTime(baseGain, time + attackTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+    gain.gain.setValueAtTime(baseGain, time + Math.max(attackTime + 0.01, dur - releaseTime));
+    gain.gain.linearRampToValueAtTime(0, time + dur);
 
-    mod.connect(modGain).connect(osc.frequency);
     osc.connect(filter).connect(gain).connect(generatedBus);
 
-    const voiceRecord = {
-      filter,
-      gain,
-      baseGain,
-      cutoffMult: 1,
-      layerGain: 1
-    };
-
+    const voiceRecord = { filter, gain, baseGain, cutoffMult: 1, layerGain: 1 };
     activeVoices.add(voiceRecord);
 
     osc.start(time);
-    mod.start(time);
-    osc.stop(time + dur + 0.08);
-    mod.stop(time + dur + 0.08);
-
-    // Noise bursts are intentionally strongest when slider is low.
-    if ((state.noise > 0.28 || state.shape === "noisy") && feedRecreationAmount > 0.15) {
-      playTextureNoise(time, dur, {
-        ...state,
-        noise: state.noise * feedRecreationAmount,
-        brightness: state.brightness
-      });
-    }
+    osc.stop(time + dur + 0.05);
 
     setTimeout(() => {
       activeVoices.delete(voiceRecord);
-    }, Math.max(20, (time + dur + 0.15 - audioCtx.currentTime) * 1000));
-
-    const pan = audioCtx.createStereoPanner();
-
-    pan.pan.value = Math.random() * 2 - 1;
-
-    osc.connect(filter)
-    .connect(gain)
-    .connect(pan)
-    .connect(generatedBus);
-
+    }, Math.max(20, (time + dur + 0.1 - audioCtx.currentTime) * 1000));
   }
 
   function playTextureNoise(time, dur, state) {
@@ -1911,10 +1871,11 @@
       filter.frequency.setValueAtTime(lerp(550, 2400, state.brightness), time);
       filter.Q.value = 0.45;
 
-      const baseGain = 0.025 / Math.sqrt(chord.length);
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.linearRampToValueAtTime(baseGain * Number($("synth").value), time + 1.1);
-      gain.gain.setTargetAtTime(0.0001, time + duration * 0.68, duration * 0.18);
+      const baseGain = 0.09 / Math.sqrt(chord.length);
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(baseGain * Number($("synth").value), time + 0.3);
+      gain.gain.setValueAtTime(baseGain * Number($("synth").value), time + duration * 0.68);
+      gain.gain.linearRampToValueAtTime(0, time + duration);
 
       osc.connect(filter).connect(gain).connect(generatedBus);
 
@@ -1941,77 +1902,73 @@
 
   function playMelodicSongTone(time, state, duration) {
     const melodicness = getMelodicness();
-    if (melodicness < 0.08) return;
+    const entropy    = clamp(Number($("entropy").value), 0, 0.9);
+    const rootPc     = analysis ? analysis.rootPc : 0;
+    const synthVol   = Number($("synth").value);
+    const beat       = 60 / Number($("tempo").value);
 
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    const filter = audioCtx.createBiquadFilter();
+    // ── Pitch: pentatonic scale, octave chosen by melodicness ────────────
+    const pentatonic = [0, 2, 4, 7, 9];
+    // pick a scale degree driven by the Markov state
+    const degreeIdx  = Math.floor(state.m0) % pentatonic.length;
+    const octave     = melodicness > 0.6 ? 5 : melodicness > 0.3 ? 4 : 3;
+    const noteMidi   = clamp(octave * 12 + rootPc + pentatonic[degreeIdx], 48, 84);
+    const f0         = midiToFreq(noteMidi);
 
-    // Still derived from the feed gesture, but pulled into a musical scale.
-    const m0 = blendMidiTowardMelody(state.m0, melodicness);
-    const m1 = blendMidiTowardMelody(state.m1, melodicness);
-    const m2 = blendMidiTowardMelody(state.m2, melodicness);
-
-    const f0 = midiToFreq(clamp(m0, 42, 92));
-    const f1 = midiToFreq(clamp(m1, 42, 92));
-    const f2 = midiToFreq(clamp(m2, 42, 92));
-
-    const dur = clamp(duration, 0.12, 2.8);
-    playSourceGrain(time, state);
-    osc.type = melodicness > 0.65 ? "sine" : "triangle";
-    osc.frequency.setValueAtTime(f0, time);
-
-    if (Math.abs(m2 - m0) > 1.5) {
-      osc.frequency.exponentialRampToValueAtTime(f1, time + dur * 0.45);
-      osc.frequency.exponentialRampToValueAtTime(f2, time + dur);
-    } else {
-      osc.frequency.setValueAtTime(f0, time);
-    }
-
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(
-      clamp(lerp(1200, 5200, state.brightness) * lerp(0.8, 1.2, melodicness), 700, 6500),
-      time
+    // ── Duration: snap to musical note lengths based on tempo + complexity ─
+    const noteValues = melodicness > 0.6
+      ? [beat * 0.5, beat, beat * 1.5, beat * 2]        // longer, song-like
+      : [beat * 0.25, beat * 0.5, beat * 0.75, beat];   // shorter, gesture-like
+    const dur = clamp(
+      noteValues[Math.floor(state.amp * (noteValues.length - 0.01))],
+      0.1, beat * 3
     );
-    filter.Q.setValueAtTime(0.75, time);
 
-    const baseGain =
-      (0.018 + 0.038 * melodicness) *
-      lerp(0.7, 1.2, state.amp) *
-      Number($("synth").value);
+    // ── Timbre: complexity controls waveform richness ─────────────────────
+    // entropy adds slight detune wobble
+    const osc  = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    osc.type  = melodicness > 0.65 ? "sine" : "triangle";
+    osc2.type = "sine";
+    osc.frequency.setValueAtTime(f0, time);
+    osc2.frequency.setValueAtTime(f0, time);
+    // subtle chorus detune — wider with entropy
+    osc2.detune.setValueAtTime(5 + entropy * 12, time);
 
-    gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.linearRampToValueAtTime(baseGain, time + lerp(0.05, 0.015, melodicness));
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+    // ── Filter: complexity opens brightness, entropy adds resonance ───────
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(clamp(800 + melodicness * 2800, 800, 3600), time);
+    filter.Q.setValueAtTime(0.5 + entropy * 1.5, time);
 
-    osc.connect(filter).connect(gain).connect(generatedBus);
+    // ── Envelope: attack/release scale with tempo ─────────────────────────
+    const attack  = clamp(beat * 0.05, 0.02, 0.08);
+    const release = clamp(beat * 0.15, 0.06, 0.25);
+    const baseGain = 0.22 * synthVol;
 
-    const voiceRecord = {
-      filter,
-      gain,
-      baseGain,
-      cutoffMult: 1,
-      layerGain: 1
-    };
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(baseGain, time + attack);
+    gain.gain.setValueAtTime(baseGain, time + Math.max(attack + 0.01, dur - release));
+    gain.gain.linearRampToValueAtTime(0, time + dur);
 
+    const osc2Gain = audioCtx.createGain();
+    osc2Gain.gain.value = 0.35;
+
+    osc.connect(filter);
+    osc2.connect(osc2Gain).connect(filter);
+    filter.connect(gain).connect(generatedBus);
+
+    const voiceRecord = { filter, gain, baseGain, cutoffMult: 1, layerGain: 1 };
     activeVoices.add(voiceRecord);
 
     osc.start(time);
-    osc.stop(time + dur + 0.08);
+    osc2.start(time);
+    osc.stop(time + dur + 0.05);
+    osc2.stop(time + dur + 0.05);
 
-    setTimeout(() => {
-      activeVoices.delete(voiceRecord);
-    }, Math.max(20, (time + dur + 0.15 - audioCtx.currentTime) * 1000));
-
-    const pan = audioCtx.createStereoPanner();
-
-    pan.pan.value = Math.random() * 2 - 1;
-
-    osc.connect(filter)
-    .connect(gain)
-    .connect(pan)
-    .connect(generatedBus);
-    
+    setTimeout(() => activeVoices.delete(voiceRecord),
+      Math.max(20, (time + dur + 0.1 - audioCtx.currentTime) * 1000));
   }
 
   function quantizeMidiToPentatonic(midi, rootPc) {
@@ -2041,62 +1998,42 @@
 
     const freq = midiToFreq(clamp(midi, 30, 52));
 
-    // Clean sine waves for harmonic bass
     osc.type = "sine";
     sub.type = "sine";
-    
     osc.frequency.setValueAtTime(freq, time);
-    sub.frequency.setValueAtTime(freq / 2, time); // Octave below for richness
+    sub.frequency.setValueAtTime(freq / 2, time);
 
-    // Minimal pitch variation
-    if (Math.random() < 0.1) {
-      const targetFreq = freq * Math.pow(2, (Math.random() * 0.02 - 0.01)); // very subtle detune
-      osc.frequency.exponentialRampToValueAtTime(targetFreq, time + duration * 0.7);
-    }
-
+    // Open lowpass so bass frequencies actually pass through
     filter.type = "lowpass";
-    filter.frequency.setValueAtTime(
-        lerp(300, 1200, liveFeedColor.brightness), // More controlled frequency range
-        time
-    );
-    filter.Q.value = 0.5; // Less resonance
+    filter.frequency.setValueAtTime(800, time);
+    filter.Q.value = 0.5;
 
-    const baseGain =
-        0.25 * // Reduced gain for cleaner sound
-        Number($("bass").value) *
-        lerp(0.8, 1.2, 0.5);
+    const baseGain = 0.7 * Number($("bass").value);
+    const release = 0.1;
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(baseGain, time + 0.02);
+    gain.gain.setValueAtTime(baseGain, time + Math.max(0.03, duration - release));
+    gain.gain.linearRampToValueAtTime(0, time + duration);
 
-    gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(baseGain, time + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-
-    // Simple mix
     const oscGain = audioCtx.createGain();
     const subGain = audioCtx.createGain();
-    
     oscGain.gain.value = 0.7;
     subGain.gain.value = 0.5;
-    
-    osc.connect(oscGain);
-    sub.connect(subGain);
-    
-    oscGain.connect(filter);
-    subGain.connect(filter);
-    
-    filter.connect(gain).connect(generatedBus);
-    const bassDry = audioCtx.createGain();
-    bassDry.gain.value = 1.0; // Reduced dry gain
-    gain.connect(bassDry).connect(dryGain);
 
-    const voiceRecord = { filter, gain, baseGain, cutoffMult: 0.28, layerGain: Number($("bass").value) };
+    osc.connect(oscGain).connect(filter);
+    sub.connect(subGain).connect(filter);
+    filter.connect(gain).connect(generatedBus);
+
+    // cutoffMult: 1 so updateLiveSoundControls doesn't crush the filter to inaudibility
+    const voiceRecord = { filter, gain, baseGain, cutoffMult: 1, layerGain: 1 };
     activeVoices.add(voiceRecord);
 
     osc.start(time);
     sub.start(time);
-    osc.stop(time + duration + 0.3);
-    sub.stop(time + duration + 0.3);
+    osc.stop(time + duration + 0.1);
+    sub.stop(time + duration + 0.1);
 
-    setTimeout(() => activeVoices.delete(voiceRecord), Math.max(20, (time + duration + 0.3 - audioCtx.currentTime) * 1000));
+    setTimeout(() => activeVoices.delete(voiceRecord), Math.max(20, (time + duration + 0.15 - audioCtx.currentTime) * 1000));
   }
 
   function playFeedPercussion(time) {
@@ -2125,24 +2062,25 @@
     const rates = [0.5 * pitchShift, 0.75 * pitchShift, 1 * pitchShift, 1.25 * pitchShift, 1.5 * pitchShift];
     src.playbackRate.value = rates[Math.floor(Math.random() * rates.length)];
 
-    filter.type = "highpass";
-    filter.frequency.value = lerp(900, 6800, clamp((analysis.brightness + liveFeedColor.brightness) * 0.5, 0, 1));
-    filter.Q.value = 0.5;
+    // Bandpass keeps body of the hit, not just high fizz
+    filter.type = "bandpass";
+    filter.frequency.value = lerp(300, 2000, clamp((analysis.brightness + liveFeedColor.brightness) * 0.5, 0, 1));
+    filter.Q.value = 0.8;
 
-    // Balanced gain envelope for clearer drums
-    const drumGain = 0.3 * Number($("drums").value) * lerp(1.0, 0.7, getMelodicness()); // Reduced gain
-    gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(drumGain, time + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.12 + Math.random() * 0.08); // Shorter decay
+    const drumGain = 0.8 * Number($("drums").value);
+    const drumDur = 0.15 + Math.random() * 0.1;
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(drumGain, time + 0.005);
+    gain.gain.setValueAtTime(drumGain, time + drumDur * 0.4);
+    gain.gain.linearRampToValueAtTime(0, time + drumDur);
 
-    src.connect(filter).connect(gain).connect(generatedBus);
-    src.start(time, onset.offset, 0.05 + Math.random() * 0.08); // Shorter grain
-    src.stop(time + 0.2);
-    
     const pan = audioCtx.createStereoPanner();
-    pan.pan.value = Math.random() * 2 - 1;
-    src.disconnect();
+    pan.pan.value = (Math.random() * 2 - 1) * 0.4;
+
+    // Single clean connection — no disconnect/reconnect
     src.connect(filter).connect(gain).connect(pan).connect(generatedBus);
+    src.start(time, onset.offset, drumDur);
+    src.stop(time + drumDur + 0.05);
   }
 
   function playFeedLoopGrain(time, duration) {
