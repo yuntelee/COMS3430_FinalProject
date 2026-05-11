@@ -510,6 +510,7 @@
   const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
   const freqToMidi = (f) => 69 + 12 * Math.log2(Math.max(1, f) / 440);
   const noteNames = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
+  const PENTATONIC_SCALE = [0, 2, 4, 7, 9];
   const nowString = () => new Date().toISOString().replace(/[:.]/g, "-");
   const entropyHistory = [];
 
@@ -699,6 +700,9 @@
   let currentRhythm = "1";
   let currentTexture = "medium-bright-chirp";
   let currentBass = "0";
+  let currentChordDegree = 0;
+  let nextChordTime = 0;
+  let lastLeadMidi = null;
 
   const activeVoices = new Set();
   let activePadNotes = 0;
@@ -1181,6 +1185,7 @@
       sampleRate: sr,
       rootPc,
       avgRms,
+      rmsMed,
       brightness: brightnessMed,
       noisiness: flatnessMed,
       centroidMed,
@@ -1395,6 +1400,9 @@
     nextNoteTime = audioCtx.currentTime + 0.2;
     activePadNotes = 0;
     activeVoices.clear();
+    currentChordDegree = 0;
+    nextChordTime = nextNoteTime;
+    lastLeadMidi = null;
 
     originalFeedGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
     originalFeedGain.gain.linearRampToValueAtTime(0.7, audioCtx.currentTime + 0.5);
@@ -1478,6 +1486,21 @@
       currentTexture = chains.texture.choose(currentTexture, entropy * 0.55);
 
       const state = decodePitchState(currentPitchState);
+
+      if (nextNoteTime >= nextChordTime) {
+        const rootPc = analysis ? analysis.rootPc : 0;
+        const stateDegree = getPentatonicDegreeIndex(state.m0, rootPc);
+        const bassInterval = parseInt(currentBass, 10);
+        const bassDegree = Number.isFinite(bassInterval)
+          ? getPentatonicDegreeIndex(60 + rootPc + bassInterval, rootPc)
+          : stateDegree;
+        const stability = lerp(0.7, 0.4, entropy);
+        const targetDegree = Math.random() < stability ? stateDegree : bassDegree;
+        currentChordDegree = Math.random() < entropy * 0.35
+          ? Math.floor(Math.random() * PENTATONIC_SCALE.length)
+          : targetDegree;
+        nextChordTime = nextNoteTime + beat * lerp(2, 4, melodicness);
+      }
 
       const learnedGap = state.gap || parseFloat(currentRhythm) || 1;
       // entropy adds timing jitter — high entropy = looser, more random spacing
@@ -1645,15 +1668,17 @@
     const density = Number($("density").value || 0.44);
     const synth = Number($("synth").value || 0.82);
     const complexity = Number($("complexity").value || 0.25);
+    const drums = Number($("drums").value || 0.58);
 
     const fmIndex = Number($("fmIndex").value || 70);
 
-    // generatedBus scales with density + synth
-    generatedBus.gain.setTargetAtTime(lerp(0.6, 1.0, density) * lerp(0.7, 1.0, synth), t, 0.18);
+    const layerPresence = Math.max(synth, drums * 0.9);
+    // generatedBus scales with density + most-active layer
+    generatedBus.gain.setTargetAtTime(lerp(0.6, 1.0, density) * lerp(0.65, 1.0, layerPresence), t, 0.18);
     // wetGain (reverb send) scales with density
-    wetGain.gain.setTargetAtTime(lerp(0.1, 0.3, density) * synth, t, 0.18);
+    wetGain.gain.setTargetAtTime(lerp(0.1, 0.3, density) * lerp(0.4, 1.0, layerPresence), t, 0.18);
     // dryGain scales inversely with entropy (more entropy = more washed)
-    dryGain.gain.setTargetAtTime(lerp(0.35, 0.6, 1 - entropy) * synth, t, 0.18);
+    dryGain.gain.setTargetAtTime(lerp(0.35, 0.6, 1 - entropy) * lerp(0.5, 1.0, layerPresence), t, 0.18);
 
     // fmIndex now controls filter brightness (0=dark/muffled, 150=bright/open)
     const brightnessMult = lerp(0.4, 1.6, fmIndex / 150);
@@ -1676,6 +1701,33 @@
 
   function quantizeMidiForMelody(midi) {
     return quantizeMidiToPentatonic(midi, analysis ? analysis.rootPc : 0);
+  }
+
+  function getPentatonicDegreeIndex(midi, rootPc) {
+    const quantized = quantizeMidiToPentatonic(midi, rootPc);
+    const pc = ((Math.round(quantized) - rootPc) % 12 + 12) % 12;
+    const idx = PENTATONIC_SCALE.indexOf(pc);
+    return idx === -1 ? 0 : idx;
+  }
+
+  function getPentatonicMidi(rootPc, degreeIndex, octave) {
+    const deg = PENTATONIC_SCALE[((degreeIndex % PENTATONIC_SCALE.length) + PENTATONIC_SCALE.length) % PENTATONIC_SCALE.length];
+    return octave * 12 + rootPc + deg;
+  }
+
+  function getChordTones(rootPc, degreeIndex, octave) {
+    return [
+      getPentatonicMidi(rootPc, degreeIndex, octave),
+      getPentatonicMidi(rootPc, degreeIndex + 2, octave),
+      getPentatonicMidi(rootPc, degreeIndex + 4, octave)
+    ];
+  }
+
+  function pickNearestTone(targetMidi, tones) {
+    return tones.reduce((best, tone) =>
+      Math.abs(tone - targetMidi) < Math.abs(best - targetMidi) ? tone : best,
+      tones[0]
+    );
   }
 
   function blendMidiTowardMelody(rawMidi, melodicness) {
@@ -1850,10 +1902,12 @@
 
   function playSparseHarmonicPad(time, state, duration) {
     const complexity = Number($("complexity").value);
-
-    // Quantize only the background harmony, not the chirp gestures.
-    const center = quantizeMidiToPentatonic(state.m0, analysis ? analysis.rootPc : 0);
-    const chord = complexity < 0.55 ? [center - 12, center - 5] : [center - 12, center - 5, center];
+    const rootPc = analysis ? analysis.rootPc : 0;
+    const padOctave = complexity < 0.55 ? 2 : 3;
+    const chordTones = getChordTones(rootPc, currentChordDegree, padOctave);
+    const chord = complexity < 0.55
+      ? [chordTones[0], chordTones[2]]
+      : chordTones;
 
     if (activePadNotes + chord.length > 3) return;
     activePadNotes += chord.length;
@@ -1907,13 +1961,27 @@
     const synthVol   = Number($("synth").value);
     const beat       = 60 / Number($("tempo").value);
 
-    // ── Pitch: pentatonic scale, octave chosen by melodicness ────────────
-    const pentatonic = [0, 2, 4, 7, 9];
-    // pick a scale degree driven by the Markov state
-    const degreeIdx  = Math.floor(state.m0) % pentatonic.length;
-    const octave     = melodicness > 0.6 ? 5 : melodicness > 0.3 ? 4 : 3;
-    const noteMidi   = clamp(octave * 12 + rootPc + pentatonic[degreeIdx], 48, 84);
-    const f0         = midiToFreq(noteMidi);
+    // ── Pitch: follow a stable chord pool, with gentle motion ────────────
+    const octave = melodicness > 0.6 ? 5 : melodicness > 0.3 ? 4 : 3;
+    const chordTones = getChordTones(rootPc, currentChordDegree, octave);
+    const chordPool = chordTones.flatMap(tone => [tone - 12, tone, tone + 12]);
+    const leadTarget = lastLeadMidi ?? chordTones[0];
+    const pickRandom = Math.random() < entropy * 0.35;
+    let noteMidi = pickRandom
+      ? chordPool[Math.floor(Math.random() * chordPool.length)]
+      : pickNearestTone(leadTarget, chordPool);
+
+    if (Math.random() < 0.18 + entropy * 0.12) {
+      const degreeIdx = getPentatonicDegreeIndex(state.m0, rootPc);
+      const colorTone = getPentatonicMidi(rootPc, degreeIdx, octave);
+      if (Math.abs(colorTone - noteMidi) <= 5) {
+        noteMidi = colorTone;
+      }
+    }
+
+    noteMidi = clamp(noteMidi, 48, 84);
+    lastLeadMidi = noteMidi;
+    const f0 = midiToFreq(noteMidi);
 
     // ── Duration: snap to musical note lengths based on tempo + complexity ─
     const noteValues = melodicness > 0.6
@@ -1972,12 +2040,11 @@
   }
 
   function quantizeMidiToPentatonic(midi, rootPc) {
-    const scale = [0, 2, 4, 7, 9];
     let best = midi;
     let bestDist = Infinity;
 
     for (let oct = 2; oct <= 7; oct++) {
-      for (const deg of scale) {
+      for (const deg of PENTATONIC_SCALE) {
         const c = oct * 12 + rootPc + deg;
         const d = Math.abs(c - midi);
         if (d < bestDist) {
@@ -2040,7 +2107,8 @@
     if (!decodedBuffer || !analysis || !analysis.onsets.length) return;
 
     // Choose onset more intelligently - prefer stronger onsets
-    const strongOnsets = analysis.onsets.filter(o => o.amp > analysis.rmsMed * 1.2);
+    const rmsRef = analysis.rmsMed ?? analysis.avgRms ?? 0.01;
+    const strongOnsets = analysis.onsets.filter(o => o.amp > rmsRef * 1.2);
     const onset = (strongOnsets.length > 0 && Math.random() < 0.7) 
       ? strongOnsets[Math.floor(Math.random() * strongOnsets.length)]
       : analysis.onsets[Math.floor(Math.random() * analysis.onsets.length)];
@@ -2058,28 +2126,36 @@
       Math.pow(2, (nearestFeature.midi - 60) / 12) : 1;
     
     src.buffer = decodedBuffer;
-    // More melodic playback rates, centered around the feed's pitch
-    const rates = [0.5 * pitchShift, 0.75 * pitchShift, 1 * pitchShift, 1.25 * pitchShift, 1.5 * pitchShift];
-    src.playbackRate.value = rates[Math.floor(Math.random() * rates.length)];
+    const rates = [0.6 * pitchShift, 0.8 * pitchShift, 1 * pitchShift, 1.2 * pitchShift, 1.45 * pitchShift];
+    src.playbackRate.value = clamp(rates[Math.floor(Math.random() * rates.length)], 0.55, 1.7);
 
-    // Bandpass keeps body of the hit, not just high fizz
-    filter.type = "bandpass";
-    filter.frequency.value = lerp(300, 2000, clamp((analysis.brightness + liveFeedColor.brightness) * 0.5, 0, 1));
-    filter.Q.value = 0.8;
+    const brightness = clamp((analysis.brightness + liveFeedColor.brightness) * 0.5, 0, 1);
+    if (brightness < 0.35) {
+      filter.type = "lowpass";
+      filter.frequency.value = lerp(500, 1900, brightness / 0.35);
+      filter.Q.value = 0.5;
+    } else {
+      filter.type = "bandpass";
+      filter.frequency.value = lerp(350, 2800, brightness);
+      filter.Q.value = lerp(0.6, 1.1, brightness);
+    }
 
-    const drumGain = 0.8 * Number($("drums").value);
-    const drumDur = 0.15 + Math.random() * 0.1;
+    const drumIntensity = clamp(Number($("drums").value), 0, 1);
+    const onsetStrength = clamp(onset.amp / Math.max(1e-6, rmsRef), 0.6, 2.2);
+    const drumGain = clamp(lerp(0.35, 1.15, drumIntensity) * onsetStrength, 0.2, 1.35);
+    const drumDur = 0.14 + Math.random() * 0.14;
     gain.gain.setValueAtTime(0, time);
-    gain.gain.linearRampToValueAtTime(drumGain, time + 0.005);
-    gain.gain.setValueAtTime(drumGain, time + drumDur * 0.4);
+    gain.gain.linearRampToValueAtTime(drumGain, time + 0.003);
+    gain.gain.setValueAtTime(drumGain, time + drumDur * 0.35);
     gain.gain.linearRampToValueAtTime(0, time + drumDur);
 
     const pan = audioCtx.createStereoPanner();
-    pan.pan.value = (Math.random() * 2 - 1) * 0.4;
+    pan.pan.value = (Math.random() * 2 - 1) * 0.25;
 
     // Single clean connection — no disconnect/reconnect
     src.connect(filter).connect(gain).connect(pan).connect(generatedBus);
-    src.start(time, onset.offset, drumDur);
+    const offset = clamp(onset.offset - 0.01, 0, Math.max(0, decodedBuffer.duration - drumDur));
+    src.start(time, offset, drumDur);
     src.stop(time + drumDur + 0.05);
   }
 
