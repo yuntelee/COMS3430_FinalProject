@@ -646,7 +646,7 @@
     pitch: new MarkovChain("multi-attribute-pitch", []),
     rhythm: new MarkovChain("rhythm", ["0.5", "1", "1.5", "2"]),
     texture: new MarkovChain("texture", ["sparse-warm-tonal", "medium-bright-chirp"]),
-    bass: new MarkovChain("bass", ["0", "0", "7"])
+    bass: new MarkovChain("bass", ["0", "0", "4", "7", "5", "2"])
   };
 
   /******************************************************************
@@ -1232,10 +1232,14 @@
 
   function bassDegreeForMidi(midi, rootPc) {
     const degree = ((midi - (48 + rootPc)) % 12 + 12) % 12;
-    if ([0, 1, 11].includes(degree)) return 0;
-    if ([7, 8].includes(degree)) return 7;
-    if ([4, 3].includes(degree)) return 4;
-    return 0;
+    // includes more scale degrees for more melodic bass
+    if ([0, 1, 11].includes(degree)) return 0; // root, minor 2nd, major 7th
+    if ([2].includes(degree)) return 2; // major 2nd
+    if ([3, 4].includes(degree)) return 4; // minor 3rd, major 3rd -> subdominant
+    if ([5].includes(degree)) return 5; // perfect 4th
+    if ([7, 8].includes(degree)) return 7; // perfect 5th, minor 6th -> dominant
+    if ([9].includes(degree)) return 9; // major 6th
+    return 0; // default to root
   }
 
   function encodePitchState(s) {
@@ -1492,21 +1496,26 @@
 
       // 5. Bass harmonic ground.
       // Default is now stronger at 0.6, but density/probability still prevent overplaying.
-      if (Math.random() < bassLayer * density * lerp(0.85, 1.0, melodicness)) {
+      if (Math.random() < bassLayer * density * lerp(1.2, 1.5, melodicness)) {
         currentBass = chains.bass.choose(currentBass, entropy * 0.35);
         const root = 36 + (analysis ? analysis.rootPc : 0);
-        playBass(nextNoteTime, root + parseInt(currentBass, 10), gap * 1.8);
+        playBass(nextNoteTime, root + parseInt(currentBass, 10), gap * 0.6);
       }
 
       // 6. Feed attacks/percussion.
       // Stronger when recreating the feed, gentler when moving toward melodic song.
+      // Now more rhythmic and melodic by following feed's rhythm patterns
       if (
         decodedBuffer &&
         analysis &&
         analysis.onsets.length &&
-        Math.random() < drumLayer * density * lerp(1.2, 0.65, melodicness))
+        Math.random() < drumLayer * density * lerp(1.5, 0.8, melodicness))
     {
-        playFeedPercussion(nextNoteTime + Math.random() * beat * 0.09);
+        // Use rhythm chain to choose timing for more structured drums
+        const rhythmChoice = chains.rhythm ? chains.rhythm.choose(currentRhythm, entropy * 0.2) : "1";
+        const rhythmMult = parseFloat(rhythmChoice) || 1;
+        const timingOffset = (rhythmMult - 1) * beat * 0.5; // Adjust timing based on rhythm
+        playFeedPercussion(nextNoteTime + timingOffset);
       }
 
       // 7. Environmental loop grains.
@@ -2007,33 +2016,42 @@
 
     const freq = midiToFreq(clamp(midi, 30, 52));
 
-    osc.type = "triangle";
+    // More melodic: vary waveform based on feed characteristics
+    const waveforms = ['triangle', 'sawtooth', 'square'];
+    const waveform = waveforms[Math.floor(Math.random() * waveforms.length)];
+    osc.type = waveform;
     sub.type = "sine";
+    
     osc.frequency.setValueAtTime(freq, time);
     sub.frequency.setValueAtTime(freq / 2, time);
 
+    // Add some pitch variation for melody
+    if (Math.random() < 0.3) {
+      const targetFreq = freq * Math.pow(2, (Math.random() * 0.1 - 0.05)); // slight detune
+      osc.frequency.exponentialRampToValueAtTime(targetFreq, time + duration * 0.5);
+    }
+
     filter.type = "lowpass";
     filter.frequency.setValueAtTime(
-        lerp(900, 3200, liveFeedColor.brightness),
+        lerp(600, 2800, liveFeedColor.brightness),
         time
     );
-    filter.Q.value = 0.55;
-
+    filter.Q.value = 0.45;
 
     const baseGain =
-        0.42 *
+        0.35 *
         Number($("bass").value) *
-        lerp(0.8, 1.4, state?.amp || 0.5);
+        lerp(0.9, 1.3, state?.amp || 0.5);
 
-        gain.gain.setValueAtTime(0.0001, time);
-        gain.gain.exponentialRampToValueAtTime(baseGain, time + 0.035);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(baseGain, time + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
 
     osc.connect(filter);
     sub.connect(filter);
     filter.connect(gain).connect(generatedBus);
     const bassDry = audioCtx.createGain();
-    bassDry.gain.value = 1.4;
+    bassDry.gain.value = 1.2;
     gain.connect(bassDry).connect(dryGain);
 
     const voiceRecord = { filter, gain, baseGain, cutoffMult: 0.28, layerGain: Number($("bass").value) };
@@ -2041,50 +2059,56 @@
 
     osc.start(time);
     sub.start(time);
-    osc.stop(time + duration + 1);
-    sub.stop(time + duration + 1);
+    osc.stop(time + duration + 0.5);
+    sub.stop(time + duration + 0.5);
 
-    setTimeout(() => activeVoices.delete(voiceRecord), Math.max(20, (time + duration + 1 - audioCtx.currentTime) * 1000));
+    setTimeout(() => activeVoices.delete(voiceRecord), Math.max(20, (time + duration + 0.5 - audioCtx.currentTime) * 1000));
   }
 
   function playFeedPercussion(time) {
     if (!decodedBuffer || !analysis || !analysis.onsets.length) return;
 
-    const onset = analysis.onsets[Math.floor(Math.random() * analysis.onsets.length)];
+    // Choose onset more intelligently - prefer stronger onsets
+    const strongOnsets = analysis.onsets.filter(o => o.amp > analysis.rmsMed * 1.2);
+    const onset = (strongOnsets.length > 0 && Math.random() < 0.7) 
+      ? strongOnsets[Math.floor(Math.random() * strongOnsets.length)]
+      : analysis.onsets[Math.floor(Math.random() * analysis.onsets.length)];
+    
     const src = audioCtx.createBufferSource();
     const gain = audioCtx.createGain();
     const filter = audioCtx.createBiquadFilter();
 
-    playSourceGrain(time, {
-        m0: 60,
-        pitchNorm: 0.5
-    });
+    // Use feed's pitch for more melodic percussion
+    const nearestFeature = analysis.features ? 
+      analysis.features.reduce((prev, curr) => 
+        Math.abs(curr.time - onset.time) < Math.abs(prev.time - onset.time) ? curr : prev
+      ) : null;
+    const pitchShift = nearestFeature && nearestFeature.midi ? 
+      Math.pow(2, (nearestFeature.midi - 60) / 12) : 1;
+    
     src.buffer = decodedBuffer;
-    src.playbackRate.value = [0.82, 1, 1.08, 1.22][Math.floor(Math.random() * 4)];
+    // More melodic playback rates, centered around the feed's pitch
+    const rates = [0.5 * pitchShift, 0.75 * pitchShift, 1 * pitchShift, 1.25 * pitchShift, 1.5 * pitchShift];
+    src.playbackRate.value = rates[Math.floor(Math.random() * rates.length)];
 
     filter.type = "highpass";
     filter.frequency.value = lerp(900, 6800, clamp((analysis.brightness + liveFeedColor.brightness) * 0.5, 0, 1));
     filter.Q.value = 0.5;
 
-
-    const drumGain = 0.5 * Number($("drums").value);
+    // Quicker and more melodic gain envelope
+    const drumGain = 0.4 * Number($("drums").value) * lerp(1.2, 0.8, getMelodicness());
     gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(drumGain, time + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.32 + Math.random() * 0.18);
+    gain.gain.exponentialRampToValueAtTime(drumGain, time + 0.001);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.15 + Math.random() * 0.1); // Shorter decay
 
     src.connect(filter).connect(gain).connect(generatedBus);
-    src.start(time, onset.offset, 0.07 + Math.random() * 0.16);
-    src.stop(time + 0.42);
+    src.start(time, onset.offset, 0.05 + Math.random() * 0.08); // Shorter grain
+    src.stop(time + 0.2);
+    
     const pan = audioCtx.createStereoPanner();
-
     pan.pan.value = Math.random() * 2 - 1;
-
     src.disconnect();
-
-    src.connect(filter)
-    .connect(gain)
-    .connect(pan)
-    .connect(generatedBus);
+    src.connect(filter).connect(gain).connect(pan).connect(generatedBus);
   }
 
   function playFeedLoopGrain(time, duration) {
